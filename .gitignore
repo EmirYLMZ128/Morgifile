@@ -1,11 +1,11 @@
-# Veritabanı
+# Database
 morgifile.db
 *.sqlite3
 
-# Shield (Kullanıcı İndirmeleri)
+# Shield
 Safe/
 
-# Python Sistem Dosyaları
+# Python system files
 __pycache__/
 *.pyc
 .env
