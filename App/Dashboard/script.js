@@ -286,34 +286,31 @@ function resolveSource(img) {
 }
 
 async function handleImageError(imgEl, imageId, originalUrl) {
-  const img = images.find(i => i.id === imageId);
-  if (!img) return;
+    const img = images.find(i => i.id === imageId);
+    if (!img) return;
 
-  // 1. IF PROXY WAS ALREADY TRIED AND FAILED AGAIN -> MOVE TO GRAVEYARD
-  if (img.proxyTried) {
-      if (!img.isDead) {
-          img.isDead = true;
-          fetch(`http://127.0.0.1:8000/images/${imageId}/mark-dead`, { method: 'PATCH' });
-          render(); 
-      }
-      return;
-  }
-  
-  // 2. FIRST ERROR: Might be CORS. Activate Proxy.
-  img.proxyTried = true;
-  img.ProxyUrl = `http://127.0.0.1:8000/proxy/image?url=${encodeURIComponent(originalUrl)}`;
-  img.isCORS = true;
-  render(); // Fix the screen immediately so user doesn't see a broken image
+    if (img.proxyTried) {
+        if (!img.isDead) {
+            console.log("Proxy ile de açılamadı, görsel tamamen ölü (Dead):", imageId);
+            img.isDead = true;
+            fetch(`http://127.0.0.1:8000/images/${imageId}/mark-dead`, { method: 'PATCH' });
+            render(); 
+        }
+        return;
+    }
+    
+    if (imgEl.src.includes('/proxy/image')) return;
 
-  // 🚀 MISSING PART: Save status to database!
-  try {
-      await fetch(`http://127.0.0.1:8000/images/${imageId}/proxy-enable`, { 
-          method: 'POST' 
-      });
-      console.log(`Image ${imageId} updated with Proxy in database.`);
-  } catch (err) {
-      console.error("Failed to write Proxy status to database:", err);
-  }
+    console.log("CORS yedi, Proxy üzerinden kurtarılıyor:", imageId);
+    
+    const encodedUrl = encodeURIComponent(originalUrl);
+    const proxyUrl = `http://127.0.0.1:8000/proxy/image?url=${encodedUrl}`;
+    
+    img.proxyTried = true;
+    img.ProxyUrl = proxyUrl; 
+    
+    imgEl.src = proxyUrl;
+    
 }
 
 // =====================
@@ -453,13 +450,26 @@ function openImageDetail(imageId) {
     document.getElementById("info-category").innerText = img.category;
     document.getElementById("info-size").innerText = `${img.width || 0}px x ${img.height || 0}px`;
 
+    // 🚀 YENİ EKLENEN KISIM: SOURCE URL (Asıl Post Linki)
+    const sourceLinkEl = document.getElementById("info-source-url");
+    if (sourceLinkEl) {
+        if (img.sourceUrl) {
+            sourceLinkEl.href = img.sourceUrl;
+            // İstersen linki uzun uzun göster, istersen şık bir yazı yaz:
+            sourceLinkEl.innerText = "Orijinal Posta Git 🔗"; 
+            sourceLinkEl.style.display = "inline-block";
+        } else {
+            // Eskiden kaydedilmiş ve sourceUrl'i olmayan görseller için:
+            sourceLinkEl.style.display = "none"; 
+        }
+    }
+
     renderDetailActions(img);
     renderAITools(img); 
     
     modal.style.display = "flex";
     modal.classList.add("active");
 }
-
 // 🤖 Function Rendering AI and Search Engine Buttons
 function renderAITools(img) {
     const promptCont = document.getElementById("prompt-btn");

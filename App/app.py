@@ -27,7 +27,7 @@ app.add_middleware(
 
 DOWNLOADS_PATH = str(os.path.join(pathlib.Path.home(), "Downloads"))
 
-# 🛡️ CROSS-PLATFORM main  (Windows / Mac / Linux Uyumlu)
+# 🛡️ CROSS-PLATFORM (Windows / Mac / Linux Uyumlu)
 if os.name == 'nt': # Windows
     base_dir = os.getenv('APPDATA')
 else: # Mac/Linux
@@ -60,12 +60,13 @@ def init_db():
     conn = get_db_connection()
     cursor = conn.cursor()
 
+    # ✨ isCORS ve ProxyUrl çöpe atıldı!
     cursor.execute('''
         CREATE TABLE IF NOT EXISTS images (
             id TEXT PRIMARY KEY,
             site TEXT,
             originalUrl TEXT,
-            ProxyUrl TEXT,
+            sourceUrl TEXT,
             SafePath TEXT,
             category TEXT,
             width INTEGER,
@@ -73,10 +74,15 @@ def init_db():
             isFavorite BOOLEAN,
             isDeleted BOOLEAN,
             isDead BOOLEAN,
-            isCORS BOOLEAN,
             isSafe BOOLEAN
         )
     ''')
+
+    try:
+        cursor.execute("ALTER TABLE images ADD COLUMN sourceUrl TEXT")
+        print("✅ sourceUrl sütunu başarıyla eklendi!")
+    except sqlite3.OperationalError:
+        pass
 
     cursor.execute('''
         CREATE TABLE IF NOT EXISTS categories (
@@ -97,12 +103,13 @@ def init_db():
 init_db()
 
 # =====================
-# SCHEMAS
+# SCHEMAS (PYDANTIC - BURASI 422 HATASINI ÇÖZEN YER!)
 # =====================
 class ImageSaveSchema(BaseModel):
     site: str
-    originalUrl: str
+    url: str  # JS'den gelen 'url' ismiyle eşleşti
     category: str
+    sourceUrl: Optional[str] = None # JS'den gelen asıl post linki
     width: int = 0
     height: int = 0
     aspectRatio: Optional[str] = None
@@ -175,7 +182,6 @@ async def verify_shield(img_id: str):
         new_name = f"{img_id}{ext}"
         final_path = os.path.join(SAFE_STORAGE, new_name)
         
-        # Move file (Using await to_thread prevents blocking the server)
         await asyncio.to_thread(shutil.move, target_file, final_path)
         
         conn = get_db_connection()
@@ -196,12 +202,15 @@ async def verify_shield(img_id: str):
 async def add_image(data: ImageSaveSchema):
     conn = get_db_connection()
     try:
-        # SMART DUPLICATE CHECK (Search only the base URL before the '?' sign)
-        base_url = data.originalUrl.split('?')[0]
-        
+        base_part = data.url.split('?')[0]
+        if "image" in base_part.lower():
+            search_url = data.url
+        else:
+            search_url = base_part
+            
         existing = conn.execute(
             "SELECT id FROM images WHERE originalUrl LIKE ?", 
-            (f"{base_url}%",)
+            (f"{search_url}%",)
         ).fetchone()
         
         if existing:
@@ -209,14 +218,16 @@ async def add_image(data: ImageSaveSchema):
             return {"status": "already_exists", "message": "This image is already saved."}
 
         new_id = str(uuid.uuid4())
+        
+        # ✨ isCORS ve ProxyUrl veri tabanına YAZILMIYOR
         conn.execute('''
             INSERT INTO images (
-                id, site, originalUrl, ProxyUrl, SafePath, category, 
-                width, height, isFavorite, isDeleted, isDead, isCORS, isSafe
-            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                id, site, originalUrl, sourceUrl, SafePath, category, 
+                width, height, isFavorite, isDeleted, isDead, isSafe
+            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
         ''', (
-            new_id, data.site, data.originalUrl, "", "", data.category,
-            data.width, data.height, False, False, False, False, False
+            new_id, data.site, data.url, data.sourceUrl, "", data.category,
+            data.width, data.height, False, False, False, False
         ))
         conn.commit()
 
@@ -321,7 +332,6 @@ async def rename_category(data: CategoryRenameSchema):
 
     conn = get_db_connection()
     
-    # SECURITY WALL: System categories cannot be renamed!
     cat_to_rename = conn.execute("SELECT isSystem FROM categories WHERE name = ?", (old,)).fetchone()
     if cat_to_rename and cat_to_rename["isSystem"]:
         conn.close()
@@ -523,12 +533,10 @@ async def proxy_image(url: str):
 @app.patch("/images/{image_id}/mark-dead")
 async def mark_image_dead(image_id: str):
     conn = get_db_connection()
-    # Mark the image as dead (isDead=1)
     conn.execute("UPDATE images SET isDead = 1 WHERE id = ?", (image_id,))
     conn.commit()
     conn.close()
 
-    # Broadcast to all clients to move it to the graveyard
     await manager.broadcast({
         "type": "IMAGE_UPDATED",
         "payload": { "id": image_id, "isDead": True }
@@ -539,14 +547,20 @@ async def mark_image_dead(image_id: str):
 async def check_image(url: str):
     conn = get_db_connection()
     
-    # Check duplicate via Base URL only
-    base_url = url.split('?')[0]
-    row = conn.execute("SELECT id FROM images WHERE originalUrl LIKE ?", (f"{base_url}%",)).fetchone()
+    base_part = url.split('?')[0]
     
+    if "image" in base_part.lower():
+        search_url = url
+    else:
+        search_url = base_part
+        
+    row = conn.execute("SELECT id FROM images WHERE originalUrl LIKE ?", (f"{search_url}%",)).fetchone()
     conn.close()
+    
     if row:
         return {"exists": True}
     return {"exists": False}
+
 
 # =====================
 # DEV ENTRY
