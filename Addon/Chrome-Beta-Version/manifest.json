@@ -1,0 +1,54 @@
+{
+  "manifest_version": 3,
+  "name": "MorgiFile (Beta)",
+  "description": "Easily save and categorize images.",
+  "version": "4.0",
+
+  "icons": {
+    "16": "icons/16.png",
+    "32": "icons/32.png",
+    "48": "icons/48.png",
+    "128": "icons/128.png"
+  },
+
+  "permissions": [
+    "contextMenus",
+    "activeTab",
+    "storage"
+  ],
+  "host_permissions": [
+    "<all_urls>"
+  ],
+
+  "background": {
+    "service_worker": "background.js"
+  },
+
+  "action": {
+    "default_icon": {
+      "16": "icons/16.png",
+      "32": "icons/32.png",
+      "48": "icons/48.png",
+      "128": "icons/128.png"
+    },
+    "default_popup": "Popup/popup.html",
+    "default_title": "MorgiFile"
+  },
+  "options_ui": {
+    "page": "Options/options.html",
+    "open_in_tab": true
+  },
+
+  "content_scripts": [
+    {
+      "matches": ["<all_urls>"],
+      "js": ["content.js"]
+    }
+  ],
+  "web_accessible_resources": [
+    {
+      "resources": ["modal/style.css", "categories.json"],
+      "matches": ["<all_urls>"]
+    }
+  ]
+}

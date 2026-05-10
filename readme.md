@@ -1,10 +1,10 @@
-# Morgifile
+# 🦊 Morgifile V4
 
-[🇹🇷 Türkçe README](readme_Tr.md)
+[🇹🇷 Türkçe README](readme_Tr.md) | [🧩 Addon Docs](Addon/README.md) | [📊 Dashboard Docs](App/Dashboard/README.md)
 
 Morgifile is a powerful **Firefox extension + web dashboard** application designed to seamlessly archive, categorize, and manage web images. Acting as a true "Designer's Assistant," it ensures your visual inspiration is always safe and organized.
 
-The project consists of a Firefox extension (featuring an isolated UI), a locally running Python server (FastAPI), and a modern dashboard interface that visualizes and manages the collected data.
+The project consists of a Firefox extension (featuring an isolated UI), a locally running Python server (FastAPI), and a modern **Vue.js** dashboard interface that visualizes and manages the collected data.
 
 ---
 
@@ -12,57 +12,57 @@ The project consists of a Firefox extension (featuring an isolated UI), a locall
 
 - **Instant Archiving:** Save images from any website via **right-click** using the Firefox extension.
 - **Robust Backend:** Process images through a **local Python server** equipped with a custom proxy to bypass strict CORS policies (e.g., Instagram, Pinterest).
-- **SQLite Engine:** Lightning-fast and reliable data storage (goodbye JSON!).
+- **SQLite Engine:** Lightning-fast and reliable data storage.
 - **Safe Storage:** Shield your favorite images by physically downloading and archiving them to your local disk.
-- **The Graveyard System:** An auto-cleaning mechanism that detects expired or broken links (handling ORB errors) and silently moves them to a dedicated Graveyard category, keeping your main gallery pristine.
-- **Smart Duplicate Check:** Prevents saving the same image twice by analyzing base URLs.
+- **The Graveyard System:** An auto-cleaning mechanism that detects expired or broken links and moves them to a dedicated Graveyard category.
+- **Smart Duplicate Check:** Prevents saving the same image twice by analyzing URLs.
 - **Reverse Image Search:** Integrated one-click search tools (Google Lens, Yandex, TinEye) directly inside the dashboard.
 
 ---
 
 ## 🧩 Project Structure
 
-- **Firefox Extension** Detects images on web pages and sends them to the backend. Built with **Shadow DOM** to prevent CSS conflicts with host websites.
-
-- **Python Local Server** Built with FastAPI and Uvicorn. Receives data, handles proxy requests, manages WebSocket broadcasts, and stores data safely in an SQLite database.
-
-- **Dashboard (Web UI)** A fully localized (English) interface that displays saved images by category, provides management functionality, and acts as the command center for your visual library.
+- **[Firefox Extension](Addon/)**: Detects images on web pages and sends them to the backend. Built with **Shadow DOM** to prevent CSS conflicts.
+- **[Python Local Server](App/)**: Built with FastAPI and Uvicorn. Handles proxy requests, WebSocket broadcasts, and SQLite storage.
+- **[Dashboard (Vue V4)](App/Dashboard/)**: A modern, modular interface built with **Vue 3 + Tailwind CSS** for managing your visual library.
 
 ---
 
 ## 🛠 Technologies Used
 
-- **Frontend:** Vanilla JavaScript, HTML5, CSS3
+- **Frontend:** Vue.js 3, Tailwind CSS, Vite
 - **Backend:** Python, FastAPI, Uvicorn, SQLite
 - **Communication:** WebSockets, RESTful APIs
 - **Browser:** Firefox Extension API
 
 ---
 
-## ⚙️ Installation (Overview)
+## ⚙️ Installation
 
-> Detailed installation steps will be added in future updates.
-
-1. Run the Python local server (`python app.py`).
-2. Load the Firefox extension into your browser via `about:debugging`.
-3. Open the dashboard interface (`index.html`) in the browser.
-4. Start archiving images by right-clicking on them on any website!
+1.  **Backend:** Run the Python local server (`python app.py`).
+2.  **Extension:** Load the `Addon` folder into Firefox via `about:debugging`.
+3.  **Dashboard:** 
+    ```bash
+    cd App/Dashboard
+    npm install
+    npm run dev
+    ```
+4.  Start archiving images by right-clicking on them!
 
 ---
 
 ## 📌 Project Status
 
-The project is currently in its stable **V2 Release**.
-The core architecture (Database, Proxy, Safe Storage) is robust and fully functional. We are currently preparing for a massive **V3 overhaul**.
+The project has successfully transitioned to **V4**.
+The core architecture is robust, and the transition to a modular Vue-based dashboard is complete.
 
 ---
 
-## 🗺 Roadmap (V3 Vision)
+## 🗺 Roadmap
 
-- **Vue.js Migration:** Transitioning the Vanilla JS dashboard to a modular Vue.js + Tailwind CSS architecture.
-- **Backend Health Check:** A silent background task that pings saved URLs and automatically updates dead links without relying on frontend triggers.
-- **AI Prompt Assistance:** Smart workflows to help you easily generate detailed prompts for AI tools (like Midjourney or Firefly) based on your archived images.
-- **Color Palette Tools:** Quick and streamlined methods to extract dominant colors and HEX codes from your saved images.
+- **Backend Health Check:** Automated background tasks to detect dead links.
+- **AI Prompt Assistance:** Generate detailed prompts for AI tools (Midjourney, etc.) from archived images.
+- **Color Palette Tools:** Extract dominant colors and HEX codes directly from the gallery.
 
 ---
 
@@ -71,16 +71,11 @@ The core architecture (Database, Proxy, Safe Storage) is robust and fully functi
 Morgifile is an open-source, non-commercial project.
 Contributors are welcome to help improve features, UI/UX, and code quality.
 
-If you want to contribute:
-- Fork the repository
-- Pick an issue
-- Open a pull request
-
 ---
 
 ## 🤖 Note
 
-This project has been developed **entirely with the assistance of artificial intelligence** so far.
+This project has been developed **entirely with the assistance of artificial intelligence**.
 
 ---
 

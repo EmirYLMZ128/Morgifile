@@ -14,6 +14,8 @@ from pydantic import BaseModel
 import sqlite3
 import io
 from PIL import Image, ImageFilter
+import json
+from colorthief import ColorThief
 
 # =====================
 # APP SETUP
@@ -83,6 +85,18 @@ def init_db():
     try:
         cursor.execute("ALTER TABLE images ADD COLUMN sourceUrl TEXT")
         print("✅ sourceUrl sütunu başarıyla eklendi!")
+    except sqlite3.OperationalError:
+        pass
+
+    try:
+        cursor.execute("ALTER TABLE images ADD COLUMN mainColor TEXT")
+        print("✅ mainColor sütunu eklendi!")
+    except sqlite3.OperationalError:
+        pass
+
+    try:
+        cursor.execute("ALTER TABLE images ADD COLUMN colors TEXT")
+        print("✅ colors sütunu eklendi!")
     except sqlite3.OperationalError:
         pass
 
@@ -592,6 +606,20 @@ async def create_thumbnail(url: str, img_id: str):
         print(f"📥 Thumbnail GET isteği sonucu: {resp.status_code}")
         if resp.status_code == 200:
             def process_image(data):
+                # 1. Main Color Extraction
+                main_color_hex = None
+                try:
+                    ct = ColorThief(io.BytesIO(data))
+                    main_color_rgb = ct.get_color(quality=1)
+                    main_color_hex = '#%02x%02x%02x' % main_color_rgb
+                    
+                    conn = get_db_connection()
+                    conn.execute("UPDATE images SET mainColor = ? WHERE id = ?", (main_color_hex, img_id))
+                    conn.commit()
+                    conn.close()
+                except Exception as ce:
+                    print(f"⚠️ Main color could not be extracted: {ce}")
+
                 img = Image.open(io.BytesIO(data))
                 if img.mode != 'RGB':
                     img = img.convert('RGB')
@@ -617,8 +645,14 @@ async def create_thumbnail(url: str, img_id: str):
                 save_path = os.path.join(THUMB_STORAGE, f"{img_id}.jpg")
                 img.save(save_path, "JPEG", quality=85)
                 print(f"💾 Thumbnail başarıyla dosyaya yazıldı: {save_path}")
+                return main_color_hex
 
-            await asyncio.to_thread(process_image, resp.content)
+            extracted_color = await asyncio.to_thread(process_image, resp.content)
+            if extracted_color:
+                await manager.broadcast({
+                    "type": "IMAGE_UPDATED",
+                    "payload": { "id": img_id, "mainColor": extracted_color }
+                })
             print(f"✅ Thumbnail created for {img_id}")
         else:
             print(f"⚠️ Thumbnail indirilemedi! Durum Kodu: {resp.status_code} - Link: {url}")
@@ -631,6 +665,52 @@ async def get_thumbnail(img_id: str):
     if os.path.exists(thumb_path):
         return FileResponse(thumb_path)
     return {"error": "Thumbnail not found"}
+
+@app.post("/images/{img_id}/extract-colors")
+async def extract_colors(img_id: str):
+    conn = get_db_connection()
+    img = conn.execute("SELECT originalUrl, colors FROM images WHERE id = ?", (img_id,)).fetchone()
+    if not img:
+        conn.close()
+        raise HTTPException(404, "Image not found")
+        
+    if img["colors"]:
+        conn.close()
+        return {"colors": json.loads(img["colors"])}
+        
+    url = img["originalUrl"]
+    headers = {
+        "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/121.0.0.0 Safari/537.36",
+        "Referer": "https://www.instagram.com/",
+    }
+    try:
+        async with AsyncClient(follow_redirects=True, timeout=20) as client:
+            resp = await client.get(url, headers=headers)
+            
+        if resp.status_code == 200:
+            def get_palette(data):
+                ct = ColorThief(io.BytesIO(data))
+                palette_rgb = ct.get_palette(color_count=6, quality=1)
+                return ['#%02x%02x%02x' % c for c in palette_rgb[:5]]
+                
+            hex_colors = await asyncio.to_thread(get_palette, resp.content)
+            colors_json = json.dumps(hex_colors)
+            
+            conn.execute("UPDATE images SET colors = ? WHERE id = ?", (colors_json, img_id))
+            conn.commit()
+            conn.close()
+            
+            await manager.broadcast({
+                "type": "IMAGE_UPDATED",
+                "payload": { "id": img_id, "colors": colors_json }
+            })
+            return {"colors": hex_colors}
+        else:
+            conn.close()
+            raise HTTPException(500, "Image fetch failed")
+    except Exception as e:
+        conn.close()
+        raise HTTPException(500, f"Color extraction failed: {str(e)}")
 
 # =====================
 # DEV ENTRY

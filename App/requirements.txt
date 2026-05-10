@@ -6,3 +6,4 @@ pydantic
 websockets
 aiofiles
 pillow
+colorthief
