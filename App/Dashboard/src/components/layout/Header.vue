@@ -29,6 +29,10 @@
         Empty Trash
       </button>
       
+      <button class="action-btn ml-2" @click="store.isDarkMode = !store.isDarkMode" :title="store.isDarkMode ? 'Switch to Light Mode' : 'Switch to Dark Mode'">
+        <i class="fas" :class="store.isDarkMode ? 'fa-sun' : 'fa-moon'"></i>
+      </button>
+
       <div v-if="isCustomCategory" class="flex gap-2">
         <button class="action-btn edit" @click="$emit('renameCategory')" title="Rename Category">
           <i class="fas fa-edit"></i>

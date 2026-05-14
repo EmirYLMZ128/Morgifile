@@ -5,7 +5,8 @@ export const store = reactive({
   categories: [],
   activeCategory: 'All Images',
   isConnected: false,
-  colorMatchHex: '#ffffff'
+  colorMatchHex: '#ffffff',
+  isDarkMode: true
 });
 
 function hexToRgb(hex) {

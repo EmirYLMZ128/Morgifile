@@ -2,7 +2,7 @@
   <aside class="sidebar h-full" :class="{ 'collapsed': isCollapsed }">
     <div class="sidebar-header">
       <div class="logo">
-        <img :src="isCollapsed ? logoIcon : logoFull" 
+        <img :src="currentLogo" 
              :alt="isCollapsed ? 'Morgi Icon' : 'Morgi Logo'" 
              class="logo-img">
       </div>
@@ -49,13 +49,25 @@
 </template>
 
 <script setup>
-import { ref } from 'vue';
+import { ref, computed } from 'vue';
 import { store } from '@/store';
+
+// Logos
 import logoFull from '@/assets/MainIcons/mainLogoText.svg';
+import logoFullDark from '@/assets/MainIcons/mainLogoText4Dark.svg';
 import logoIcon from '@/assets/MainIcons/mainLogo.svg';
+import logoIconDark from '@/assets/MainIcons/mainLogo4Dark.svg';
 
 const emit = defineEmits(['openManageCategories']);
 const isCollapsed = ref(false);
+
+const currentLogo = computed(() => {
+  if (store.isDarkMode) {
+    return isCollapsed.value ? logoIconDark : logoFullDark;
+  } else {
+    return isCollapsed.value ? logoIcon : logoFull;
+  }
+});
 
 function setCategory(cat) {
   store.activeCategory = cat;

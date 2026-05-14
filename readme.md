@@ -1,4 +1,10 @@
-# 🦊 Morgifile V4
+<div align="center">
+  <picture>
+    <source media="(prefers-color-scheme: dark)" srcset="App/Dashboard/src/assets/MainIcons/mainLogo4Dark.svg">
+    <img alt="Morgifile Logo" src="App/Dashboard/src/assets/MainIcons/mainLogo.svg" width="128" height="128">
+  </picture>
+  <h1>Morgifile V4</h1>
+</div>
 
 [🇹🇷 Türkçe README](readme_Tr.md) | [🧩 Addon Docs](Addon/README.md) | [📊 Dashboard Docs](App/Dashboard/README.md)
 

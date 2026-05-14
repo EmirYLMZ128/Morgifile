@@ -1,5 +1,6 @@
 <template>
-  <div class="app-container flex w-screen h-screen overflow-hidden text-[#f8fafc] bg-[#0f172a]">
+  <div class="app-container flex w-screen h-screen overflow-hidden transition-colors duration-300" 
+       :class="store.isDarkMode ? 'text-[#f8fafc] bg-[#0f172a]' : 'text-[#1f2937] bg-[#f5f5f7]'">
     <Sidebar @openManageCategories="isCatModalVisible = true" />
 
     <main class="content flex flex-col flex-grow h-screen overflow-hidden">
@@ -44,7 +45,7 @@
 </template>
 
 <script setup>
-import { ref, onMounted } from 'vue';
+import { ref, onMounted, watch } from 'vue';
 import { store, initStore, filteredImages } from '@/store';
 import Swal from 'sweetalert2';
 
@@ -57,6 +58,14 @@ import ImageDetailModal from '@/components/modals/ImageDetailModal.vue';
 const isCatModalVisible = ref(false);
 const isDetailModalVisible = ref(false);
 const selectedImage = ref(null);
+
+watch(() => store.isDarkMode, (newVal) => {
+  if (newVal) {
+    document.body.classList.remove('light-mode');
+  } else {
+    document.body.classList.add('light-mode');
+  }
+}, { immediate: true });
 
 const AppSwal = Swal.mixin({
   background: '#1a1a1a',
