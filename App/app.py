@@ -16,8 +16,10 @@ import io
 from PIL import Image, ImageFilter
 import json
 from colorthief import ColorThief
-
-# =====================
+import threading
+import pystray
+import webbrowser
+from PIL import Image, ImageFilter
 # APP SETUP
 # =====================
 app = FastAPI()
@@ -84,19 +86,19 @@ def init_db():
 
     try:
         cursor.execute("ALTER TABLE images ADD COLUMN sourceUrl TEXT")
-        print("✅ sourceUrl sütunu başarıyla eklendi!")
+        print("[OK] sourceUrl sütunu başarıyla eklendi!")
     except sqlite3.OperationalError:
         pass
 
     try:
         cursor.execute("ALTER TABLE images ADD COLUMN mainColor TEXT")
-        print("✅ mainColor sütunu eklendi!")
+        print("[OK] mainColor sütunu eklendi!")
     except sqlite3.OperationalError:
         pass
 
     try:
         cursor.execute("ALTER TABLE images ADD COLUMN colors TEXT")
-        print("✅ colors sütunu eklendi!")
+        print("[OK] colors sütunu eklendi!")
     except sqlite3.OperationalError:
         pass
 
@@ -114,7 +116,7 @@ def init_db():
 
     conn.commit()
     conn.close()
-    print("✅ Database engine ready (SQLite)!")
+    print("[OK] Database engine ready (SQLite)!")
 
 init_db()
 
@@ -713,8 +715,42 @@ async def extract_colors(img_id: str):
         raise HTTPException(500, f"Color extraction failed: {str(e)}")
 
 # =====================
-# DEV ENTRY
+# SYSTEM TRAY LOGIC
 # =====================
+def run_tray():
+    icon_path = os.path.join(os.path.dirname(__file__), "icon.png")
+    if not os.path.exists(icon_path):
+        # Fallback if icon is missing
+        image = Image.new('RGB', (64, 64), color = (37, 99, 235))
+    else:
+        image = Image.open(icon_path)
+
+    def on_quit(icon, item):
+        icon.stop()
+        os._exit(0)
+
+    def on_open_dashboard(icon, item):
+        webbrowser.open("http://localhost:5173")
+
+    menu = pystray.Menu(
+        pystray.MenuItem("Open Dashboard", on_open_dashboard),
+        pystray.MenuItem("Quit", on_quit)
+    )
+    
+    icon = pystray.Icon("MorgiFile", image, "MorgiFile Server", menu)
+    icon.run()
+
 if __name__ == "__main__":
     import uvicorn
-    uvicorn.run(app, host="127.0.0.1", port=8000)
+    
+    # Start server in a background thread
+    def start_server():
+        config = uvicorn.Config(app, host="127.0.0.1", port=8000, log_level="info")
+        server = uvicorn.Server(config)
+        server.run()
+
+    server_thread = threading.Thread(target=start_server, daemon=True)
+    server_thread.start()
+    
+    # Run tray in the main thread (required for Windows)
+    run_tray()

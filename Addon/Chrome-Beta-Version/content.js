@@ -90,7 +90,7 @@ function createShadowHost(id) {
   link.setAttribute("href", chrome.runtime.getURL("modal/style.css"));
 
   shadow.append(link, overlay);
-  
+
   // Apply theme to host
   chrome.storage.local.get(['theme'], (res) => {
     if (res.theme === 'light') host.classList.add('light-mode');
@@ -120,14 +120,14 @@ function showInitialPicker(images) {
 
     const img = new Image();
     img.src = imgData.url;
-    
+
     img.onload = () => {
       const resEl = item.querySelector(".img-resolution");
-      if(resEl) resEl.innerText = `${img.naturalWidth} x ${img.naturalHeight} PX`;
+      if (resEl) resEl.innerText = `${img.naturalWidth} x ${img.naturalHeight} PX`;
     };
     img.onerror = () => {
       const resEl = item.querySelector(".img-resolution");
-      if(resEl) resEl.innerText = "Unknown Size";
+      if (resEl) resEl.innerText = "Unknown Size";
     };
 
     item.innerHTML = `
@@ -152,7 +152,7 @@ function showInitialPicker(images) {
 // =====================
 // ✨ GÜNCELLEME: Parametrelere imgElement eklendi
 async function showCategoryModal(imgUrl, imgElement) {
-  categoryCache = null; 
+  categoryCache = null;
   const { host, shadow, overlay } = createShadowHost("morgi-main-host");
   overlay.appendChild(buildModalHTML(imgUrl, location.hostname));
   // ✨ GÜNCELLEME: imgElement'i içeri aktarıyoruz
@@ -162,7 +162,7 @@ async function showCategoryModal(imgUrl, imgElement) {
 function buildModalHTML(imgUrl, siteAddress) {
   const modal = document.createElement("div");
   modal.className = "modal";
-  
+
   const displayUrl = imgUrl.length > 45 ? imgUrl.substring(0, 45) + '...' : imgUrl;
 
   modal.innerHTML = `
@@ -226,7 +226,7 @@ async function setupModalLogic(shadow, host, imgUrl, imgElement) {
   };
 
   const categories = await loadCategories();
-  
+
   const createCatWrapper = document.createElement("div");
   createCatWrapper.style.cssText = "padding: 10px; display: none; gap: 8px; border-bottom: 1px solid #2a2a2a; background: #252525;";
   createCatWrapper.innerHTML = `
@@ -241,7 +241,7 @@ async function setupModalLogic(shadow, host, imgUrl, imgElement) {
   const newCatBtn = document.createElement("div");
   newCatBtn.className = "custom-option";
   newCatBtn.innerHTML = `<strong style="color: #2563eb;">+ Create New Category</strong>`;
-  
+
   newCatBtn.onclick = (e) => {
     e.stopPropagation();
     newCatBtn.style.display = "none";
@@ -250,28 +250,28 @@ async function setupModalLogic(shadow, host, imgUrl, imgElement) {
   };
 
   submitBtn.onclick = async (e) => {
-    e.stopPropagation(); 
+    e.stopPropagation();
     const newCatName = inputEl.value.trim();
     if (!newCatName) return;
 
     trigger.innerText = "⏳ Checking...";
     const imageExists = await isImageAlreadySaved(imgUrl);
-    
+
     if (imageExists) {
       showInlineMessage("⚠️ This image is already archived. Category creation aborted.", "#FBBF24");
       resetCategoryCreationUI();
-      return; 
+      return;
     }
 
     const existingCategory = categories.find(cat => cat.name.toLowerCase() === newCatName.toLowerCase());
 
     if (existingCategory) {
       selectCategory(existingCategory.name);
-      return; 
+      return;
     }
 
     trigger.innerText = "⏳ Creating...";
-    optionsMenu.classList.remove("show"); 
+    optionsMenu.classList.remove("show");
 
     try {
       const res = await fetch("http://127.0.0.1:8000/categories", {
@@ -283,7 +283,7 @@ async function setupModalLogic(shadow, host, imgUrl, imgElement) {
       if (res.ok) {
         const createdCat = await res.json();
         selectCategory(createdCat.name);
-        categoryCache = null; 
+        categoryCache = null;
       } else {
         showCategoryError();
       }
@@ -310,7 +310,7 @@ async function setupModalLogic(shadow, host, imgUrl, imgElement) {
     optionsMenu.classList.remove("show");
     createCatWrapper.style.display = "none";
     newCatBtn.style.display = "block";
-    if(inputEl) inputEl.value = "";
+    if (inputEl) inputEl.value = "";
   }
 
   optionsMenu.appendChild(createCatWrapper);
@@ -328,7 +328,7 @@ async function setupModalLogic(shadow, host, imgUrl, imgElement) {
     };
     optionsMenu.appendChild(div);
   });
-  
+
   trigger.onclick = (e) => {
     e.stopPropagation();
     optionsMenu.classList.toggle("show");
@@ -346,112 +346,112 @@ async function setupModalLogic(shadow, host, imgUrl, imgElement) {
 // PURE UNIVERSAL SOURCE URL EXTRACTOR V10.1 (Google Kutu Fix)
 // =====================
 function extractSourceUrl(imgElement) {
-    const currentUrl = window.location.href;
-    if (!imgElement) return currentUrl;
+  const currentUrl = window.location.href;
+  if (!imgElement) return currentUrl;
 
-    const currentHost = window.location.hostname.replace('www.', '');
-    const isValid = (href) => href && !href.startsWith('javascript') && href !== '#' && href !== currentUrl;
+  const currentHost = window.location.hostname.replace('www.', '');
+  const isValid = (href) => href && !href.startsWith('javascript') && href !== '#' && href !== currentUrl;
 
-    // 🌟 0. ADIM: GOOGLE GÖRSELLER (Kutu Yakalama Stratejisi)
-    if (currentHost.includes('google')) {
-        // Önce resmi saran o "Ana Kutuyu" buluyoruz (Google'ın özel class'ları)
-        const gridItem = imgElement.closest('div[jsname="dTDiAc"], div.isv-r, div.ivg-i');
-        
-        if (gridItem) {
-            // Şimdi o kutunun İÇİNDEKİ imgres linkini arıyoruz (Amcaoğlunu bulduk!)
-            const googleClickable = gridItem.querySelector('a[href*="imgres"]');
-            if (googleClickable) {
-                try {
-                    const urlParams = new URLSearchParams(new URL(googleClickable.href).search);
-                    const originalUrl = urlParams.get('imgrefurl');
-                    if (originalUrl) return originalUrl;
-                } catch (e) {}
-                return googleClickable.href;
-            }
-        }
-        
-        const directA = imgElement.closest('a[href*="imgres"]');
-        if (directA) {
-             try {
-                 const urlParams = new URLSearchParams(new URL(directA.href).search);
-                 const originalUrl = urlParams.get('imgrefurl');
-                 if (originalUrl) return originalUrl;
-             } catch (e) {}
-             return directA.href;
-        }
+  // 🌟 0. ADIM: GOOGLE GÖRSELLER (Kutu Yakalama Stratejisi)
+  if (currentHost.includes('google')) {
+    // Önce resmi saran o "Ana Kutuyu" buluyoruz (Google'ın özel class'ları)
+    const gridItem = imgElement.closest('div[jsname="dTDiAc"], div.isv-r, div.ivg-i');
+
+    if (gridItem) {
+      // Şimdi o kutunun İÇİNDEKİ imgres linkini arıyoruz (Amcaoğlunu bulduk!)
+      const googleClickable = gridItem.querySelector('a[href*="imgres"]');
+      if (googleClickable) {
+        try {
+          const urlParams = new URLSearchParams(new URL(googleClickable.href).search);
+          const originalUrl = urlParams.get('imgrefurl');
+          if (originalUrl) return originalUrl;
+        } catch (e) { }
+        return googleClickable.href;
+      }
     }
 
-    let closestLink = imgElement.closest('a');
-    if (closestLink && isValid(closestLink.href)) {
-        const path = closestLink.pathname.toLowerCase();
-        if (/\/(photos|artwork|sites|image-|p\/|gallery|shots|comments)\//.test(path)) {
-            if (!path.includes('download')) return closestLink.href;
-        }
+    const directA = imgElement.closest('a[href*="imgres"]');
+    if (directA) {
+      try {
+        const urlParams = new URLSearchParams(new URL(directA.href).search);
+        const originalUrl = urlParams.get('imgrefurl');
+        if (originalUrl) return originalUrl;
+      } catch (e) { }
+      return directA.href;
+    }
+  }
+
+  let closestLink = imgElement.closest('a');
+  if (closestLink && isValid(closestLink.href)) {
+    const path = closestLink.pathname.toLowerCase();
+    if (/\/(photos|artwork|sites|image-|p\/|gallery|shots|comments)\//.test(path)) {
+      if (!path.includes('download')) return closestLink.href;
+    }
+  }
+
+  let parent = imgElement;
+  let candidates = [];
+  const containerTags = ['ARTICLE', 'SECTION', 'FIGURE', 'LI', 'PROJECTS-LIST-ITEM', 'DIV'];
+
+  for (let i = 0; i < 12; i++) {
+    if (!parent || parent.tagName === 'BODY') break;
+
+    const links = Array.from(parent.querySelectorAll('a')).filter(a => isValid(a.href));
+
+    links.forEach(link => {
+      let score = 0;
+      const urlObj = new URL(link.href);
+      const linkHost = urlObj.hostname.replace('www.', '');
+      const path = urlObj.pathname.toLowerCase();
+      const fullHref = link.href.toLowerCase();
+      const pathSegments = path.split('/').filter(p => p.length > 0);
+
+      if (/\/(photos|artwork|sites|image-|p|e|v|pin|sh|shots|gallery|article|post|reels|item|product|gp|details|comments)\//.test(path)) {
+        score += 300;
+      }
+
+      if (/\d{5,}/.test(path) || pathSegments.some(s => s.length > 10)) score += 100;
+
+      if (/(download|login|signup|signin|register|subscribe|membership|auth|search|tags|category|branding|author|profile|settings|about|contact|legal|help|explore|policy|rules|itunes|apple|play\.google|canva|microsoft)/.test(fullHref)) {
+        score -= 600;
+      }
+
+      if (pathSegments.length === 1 && !/\d{5,}/.test(path)) score -= 400;
+
+
+      if (linkHost === currentHost) score += 100;
+      score += (pathSegments.length * 25);
+
+      candidates.push({ href: link.href, score: score, distance: i });
+    });
+
+    if (i > 2 && containerTags.some(t => parent.tagName === t || parent.classList.contains(t.toLowerCase())) && candidates.length > 0) {
+      const best = candidates.sort((a, b) => b.score - a.score)[0];
+      if (best.score > 200) break;
     }
 
-    let parent = imgElement;
-    let candidates = [];
-    const containerTags = ['ARTICLE', 'SECTION', 'FIGURE', 'LI', 'PROJECTS-LIST-ITEM', 'DIV'];
+    parent = parent.parentElement;
+  }
 
-    for (let i = 0; i < 12; i++) {
-        if (!parent || parent.tagName === 'BODY') break;
-
-        const links = Array.from(parent.querySelectorAll('a')).filter(a => isValid(a.href));
-        
-        links.forEach(link => {
-            let score = 0;
-            const urlObj = new URL(link.href);
-            const linkHost = urlObj.hostname.replace('www.', '');
-            const path = urlObj.pathname.toLowerCase();
-            const fullHref = link.href.toLowerCase();
-            const pathSegments = path.split('/').filter(p => p.length > 0);
-
-            if (/\/(photos|artwork|sites|image-|p|e|v|pin|sh|shots|gallery|article|post|reels|item|product|gp|details|comments)\//.test(path)) {
-                score += 300; 
-            }
-
-            if (/\d{5,}/.test(path) || pathSegments.some(s => s.length > 10)) score += 100;
-
-            if (/(download|login|signup|signin|register|subscribe|membership|auth|search|tags|category|branding|author|profile|settings|about|contact|legal|help|explore|policy|rules|itunes|apple|play\.google|canva|microsoft)/.test(fullHref)) {
-                score -= 600; 
-            }
-
-            if (pathSegments.length === 1 && !/\d{5,}/.test(path)) score -= 400;
+  if (candidates.length > 0) {
+    candidates.sort((a, b) => b.score - a.score || a.distance - b.distance);
+    if (candidates[0].score > 0) return candidates[0].href;
+  }
 
 
-            if (linkHost === currentHost) score += 100; 
-            score += (pathSegments.length * 25);
-
-            candidates.push({ href: link.href, score: score, distance: i });
-        });
-
-        if (i > 2 && containerTags.some(t => parent.tagName === t || parent.classList.contains(t.toLowerCase())) && candidates.length > 0) {
-            const best = candidates.sort((a, b) => b.score - a.score)[0];
-            if (best.score > 200) break;
-        }
-
-        parent = parent.parentElement;
+  const spaRoutes = { 'data-elt-id': '/e/', 'data-shot-id': '/shots/', 'data-pin-id': '/pin/', 'data-post-id': '/post/' };
+  let idParent = imgElement;
+  for (let i = 0; i < 8; i++) {
+    if (!idParent) break;
+    if (idParent.attributes) {
+      for (let attr of idParent.attributes) {
+        if (spaRoutes[attr.name]) return `${window.location.origin}${spaRoutes[attr.name]}${attr.value}`;
+      }
     }
+    idParent = idParent.parentElement;
+  }
 
-    if (candidates.length > 0) {
-        candidates.sort((a, b) => b.score - a.score || a.distance - b.distance);
-        if (candidates[0].score > 0) return candidates[0].href;
-    }
-
-
-    const spaRoutes = { 'data-elt-id': '/e/', 'data-shot-id': '/shots/', 'data-pin-id': '/pin/', 'data-post-id': '/post/' };
-    let idParent = imgElement;
-    for (let i = 0; i < 8; i++) {
-        if (!idParent) break;
-        if (idParent.attributes) {
-            for (let attr of idParent.attributes) {
-                if (spaRoutes[attr.name]) return `${window.location.origin}${spaRoutes[attr.name]}${attr.value}`;
-            }
-        }
-        idParent = idParent.parentElement;
-    }
-
-    return currentUrl;
+  return currentUrl;
 }
 
 // =====================
@@ -470,26 +470,26 @@ async function handleSave(btn, shadow, host, imgUrl, imgElement) {
   let finalHeight = 0;
 
   if (imgElement && imgElement.tagName === 'IMG') {
-      finalWidth = imgElement.naturalWidth || imgElement.clientWidth || 0;
-      finalHeight = imgElement.naturalHeight || imgElement.clientHeight || 0;
+    finalWidth = imgElement.naturalWidth || imgElement.clientWidth || 0;
+    finalHeight = imgElement.naturalHeight || imgElement.clientHeight || 0;
   }
 
   if (finalWidth === 0 || finalHeight === 0) {
-      const resText = shadow.getElementById("radar-res-val").innerText;
-      const { width, height } = parseResolution(resText);
-      finalWidth = width || 0;
-      finalHeight = height || 0;
+    const resText = shadow.getElementById("radar-res-val").innerText;
+    const { width, height } = parseResolution(resText);
+    finalWidth = width || 0;
+    finalHeight = height || 0;
   }
 
   const sourceUrl = extractSourceUrl(imgElement);
 
   const payload = {
     site: location.hostname,
-    url: imgUrl, 
+    url: imgUrl,
     category: btn.dataset.category,
-    sourceUrl: sourceUrl, 
-    width: finalWidth,   
-    height: finalHeight  
+    sourceUrl: sourceUrl,
+    width: finalWidth,
+    height: finalHeight
   };
 
   console.log("🚀 Python'a Gönderilen Veri:", payload);
@@ -499,7 +499,7 @@ async function handleSave(btn, shadow, host, imgUrl, imgElement) {
   btn.style.background = "#4b4b4b";
 
   try {
-    const res = await fetch("http://127.0.0.1:8000/add-image", { 
+    const res = await fetch("http://127.0.0.1:8000/add-image", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify(payload),
@@ -563,7 +563,7 @@ async function isImageAlreadySaved(url) {
     }
     return true;
   } catch {
-    return true; 
+    return true;
   }
 }
 
@@ -596,8 +596,8 @@ function findBestImages(x, y) {
     if (dist > 30) continue;
 
     let url = el.tagName === "IMG"
-        ? el.currentSrc || el.src
-        : (getComputedStyle(el).backgroundImage.match(BG_IMAGE_REGEX) || [])[1];
+      ? el.currentSrc || el.src
+      : (getComputedStyle(el).backgroundImage.match(BG_IMAGE_REGEX) || [])[1];
 
     if (url && !url.includes("data:image/svg")) {
       // ✨ GÜNCELLEME: Burada artık "element: el" diyerek HTML etiketini de ekliyoruz

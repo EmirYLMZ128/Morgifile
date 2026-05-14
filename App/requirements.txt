@@ -7,3 +7,4 @@ websockets
 aiofiles
 pillow
 colorthief
+pystray

@@ -1,14 +1,44 @@
-# Database
-morgifile.db
-*.sqlite3
+# =====================
+# MorgiFile GitIgnore
+# =====================
 
-# Shield
-Safe/
-
-# Python system files
+# 🐍 Python
 __pycache__/
 *.pyc
+*.pyo
+*.pyd
 .env
-# Local Scripts & Reports
-MorgiFile_Baslat.bat
+.venv
+env/
+venv/
+
+# 📦 Node.js (Frontend)
+node_modules/
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+.eslintcache
+dist/
+build/
+
+# 🔍 IDE & Editors
+.vscode/
+.idea/
+*.swp
+*.swo
+.DS_Store
+
+# 🛡️ App Specific (Local Data/Temp)
+# Note: Real database is in %APPDATA%/MorgiFile, 
+# but we ignore local copies just in case.
+morgifile.db
+*.sqlite3
+Safe/
+Thumb/
+Database/
+App/icon.png
+
+# 📄 Reports & Local Scripts
 optimization_report.md
+*.log
+# Launch_MorgiFile.bat # Uncomment if you want to ignore the launcher
