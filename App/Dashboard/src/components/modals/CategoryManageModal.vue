@@ -11,7 +11,7 @@
           <button class="btn-primary" @click="createCategory">Add</button>
         </div>
         <div class="manage-cat-list">
-          <div v-for="cat in store.categories" :key="cat" class="manage-cat-item">
+          <div v-for="cat in manageableCategories" :key="cat" class="manage-cat-item">
             <span>{{ cat }}</span>
             <div class="cat-actions">
               <button class="action-btn edit" @click="$emit('renameCategory', cat)"><i class="fas fa-edit"></i></button>
@@ -25,8 +25,12 @@
 </template>
 
 <script setup>
-import { ref } from 'vue';
+import { ref, computed } from 'vue';
 import { store } from '@/store';
+
+const manageableCategories = computed(() => {
+  return store.categories.filter(cat => cat !== 'Uncategorized Favorites');
+});
 
 const props = defineProps({
   isVisible: { type: Boolean, required: true }

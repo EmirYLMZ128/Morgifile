@@ -50,7 +50,7 @@ import { computed, ref, watch, onUnmounted } from 'vue';
 import { store } from '@/store';
 
 const isCustomCategory = computed(() => {
-  const builtIns = ["All Images", "Favorites", "Graveyard", "Trash", "Color Match"];
+  const builtIns = ["All Images", "Favorites", "Graveyard", "Trash", "Color Match", "Uncategorized Favorites"];
   return !builtIns.includes(store.activeCategory);
 });
 

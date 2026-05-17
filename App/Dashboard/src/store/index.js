@@ -106,9 +106,11 @@ export async function fetchCategories() {
     const res = await fetch('http://127.0.0.1:8000/categories');
     const data = await res.json();
     if (data && data.categories) {
-      store.categories = data.categories
-        .filter(c => !c.isSystem)
-        .map(c => c.name);
+      const cats = data.categories.map(c => c.name);
+      if (!cats.includes('Uncategorized Favorites')) {
+        cats.push('Uncategorized Favorites');
+      }
+      store.categories = cats;
     }
   } catch (err) {
     console.error("Failed to load categories:", err);

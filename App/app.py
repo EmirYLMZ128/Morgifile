@@ -155,10 +155,20 @@ def init_db():
         )
     ''')
 
-    cursor.execute('''
-        INSERT OR IGNORE INTO categories (name, isSystem) 
-        VALUES ('Uncategorized Favorites', 1)
-    ''')
+    # Önceden tanımlı kategoriler listesi
+    # Buraya istediğin kategorileri ekleyebilirsin
+    default_categories = [
+        ("Uncategorized Favorites", 1),
+        ("Inspiration", 0),
+        ("Advertisements", 0),
+        ("Social Media", 0)
+    ]
+
+    for cat_name, is_sys in default_categories:
+        cursor.execute('''
+            INSERT OR IGNORE INTO categories (name, isSystem) 
+            VALUES (?, ?)
+        ''', (cat_name, is_sys))
 
     conn.commit()
     conn.close()
@@ -388,6 +398,7 @@ async def delete_category(data: CategoryDeleteSchema):
     conn.close()
 
     await manager.broadcast({"type": "CATEGORIES_UPDATED", "payload": categories})
+    await manager.broadcast({"type": "RELOAD_DATA"})
     return {"status": "deleted", "affected": related_count}
 
 @app.patch("/categories/rename")
@@ -427,6 +438,7 @@ async def rename_category(data: CategoryRenameSchema):
     conn.close()
 
     await manager.broadcast({"type": "CATEGORIES_UPDATED", "payload": categories})
+    await manager.broadcast({"type": "RELOAD_DATA"})
 
     return {"status": "merged" if exists_new else "renamed", "old": old, "new": new}
 

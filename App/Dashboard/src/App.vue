@@ -251,7 +251,12 @@ async function changeImageCategory(imageId, isRestore = false) {
   const result = await AppSwal.fire({
     title: 'Change Category',
     input: 'select',
-    inputOptions: store.categories.reduce((acc, cat) => { acc[cat] = cat; return acc; }, {}),
+    inputOptions: store.categories
+      .filter(cat => cat !== 'Uncategorized Favorites')
+      .reduce((acc, cat) => { 
+        acc[cat] = cat.length > 35 ? cat.substring(0, 35) + '...' : cat; 
+        return acc; 
+      }, {}),
     inputPlaceholder: 'Select a category',
     showCancelButton: true
   });
@@ -338,11 +343,11 @@ async function deleteCategory(catName) {
   }
 
   if (decision.isDenied) {
-    const options = store.categories.filter(c => c !== target);
+    const options = store.categories.filter(c => c !== target && c !== 'Uncategorized Favorites');
     const { value: moveTo } = await AppSwal.fire({
       title: 'Move where?', 
       input: 'select', 
-      inputOptions: Object.fromEntries(options.map(o => [o, o])), 
+      inputOptions: Object.fromEntries(options.map(o => [o, o.length > 35 ? o.substring(0, 35) + '...' : o])), 
       showCancelButton: true
     });
     if (!moveTo) return;

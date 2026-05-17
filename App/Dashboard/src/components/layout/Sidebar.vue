@@ -31,7 +31,7 @@
       
       <div class="nav-section"><span class="section-text">Categories</span></div>
       <div id="sidebar-categories" class="flex-col pb-4">
-        <div v-for="cat in store.categories" :key="cat" 
+        <div v-for="cat in visibleCategories" :key="cat" 
              class="nav-item category-item" 
              :class="{ active: store.activeCategory === cat }" 
              @click="setCategory(cat)"
@@ -60,6 +60,15 @@ import logoIconDark from '@/assets/MainIcons/mainLogo4Dark.svg';
 
 const emit = defineEmits(['openManageCategories']);
 const isCollapsed = ref(false);
+
+const visibleCategories = computed(() => {
+  return store.categories.filter(cat => {
+    if (cat === 'Uncategorized Favorites') {
+      return store.images.some(img => img.category === cat && !img.isDeleted && !img.isDead);
+    }
+    return true;
+  });
+});
 
 const currentLogo = computed(() => {
   if (store.isDarkMode) {

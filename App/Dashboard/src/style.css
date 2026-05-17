@@ -133,8 +133,10 @@ html, body {
     white-space: nowrap;
     opacity: 1;
     overflow: hidden;
+    text-overflow: ellipsis;
     display: inline-block;
     vertical-align: middle;
+    max-width: 170px;
 }
 
 .sidebar.collapsed .logo-text,
@@ -254,9 +256,9 @@ html, body {
     position: relative; z-index: 50;
 }
 
-.current-category-info { display: flex; align-items: center; gap: 15px; border-left: 3px solid var(--accent); padding-left: 15px; }
-.current-category-info i { font-size: 24px; color: var(--accent); filter: drop-shadow(0 0 8px rgba(99, 102, 241, 0.4)); }
-.current-category-info span { font-size: 28px; font-weight: 700; color: var(--text-light); }
+.current-category-info { display: flex; align-items: center; gap: 15px; border-left: 3px solid var(--accent); padding-left: 15px; max-width: 50vw; min-width: 0; }
+.current-category-info i { font-size: 24px; color: var(--accent); filter: drop-shadow(0 0 8px rgba(99, 102, 241, 0.4)); flex-shrink: 0; }
+.current-category-info span { font-size: 28px; font-weight: 700; color: var(--text-light); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 
 .header-right { display: flex; gap: 15px; min-width: 150px; justify-content: flex-end; }
 
@@ -381,7 +383,7 @@ html, body {
     border: 1px solid var(--border); border-radius: 14px; transition: 0.2s;
 }
 .manage-cat-item:hover { background: rgba(255, 255, 255, 0.07); border-color: var(--text-dim); }
-.manage-cat-item span { font-weight: 500; color: var(--text-light); }
+.manage-cat-item span { font-weight: 500; color: var(--text-light); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; flex: 1; min-width: 0; padding-right: 15px; }
 
 /* --- MODAL LİSTESİ AKSİYON BUTONLARI (Küçük tutulan hali) --- */
 .manage-cat-item .action-btn {
