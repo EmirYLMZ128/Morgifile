@@ -27,6 +27,8 @@ build/
 *.swp
 *.swo
 .DS_Store
+Thumbs.db
+desktop.ini
 
 # 🛡️ App Specific (Local Data/Temp)
 # Note: Real database is in %APPDATA%/MorgiFile, 
@@ -36,8 +38,19 @@ morgifile.db
 Safe/
 Thumb/
 Database/
+Logs/
 App/icon.png
 
 # 📄 Reports & Local Scripts
 optimization_report.md
 *.log
+
+# PyInstaller
+*.spec
+*.exe
+build/
+dist/
+
+# Temp files
+*_new
+*~

@@ -1,4 +1,12 @@
 import os
+import sys
+
+# PyInstaller --noconsole fix for Uvicorn
+if sys.stdout is None:
+    sys.stdout = open(os.devnull, "w")
+if sys.stderr is None:
+    sys.stderr = open(os.devnull, "w")
+
 import uuid
 import urllib.parse
 from typing import Optional, List
@@ -6,10 +14,13 @@ import asyncio
 import time
 import shutil
 import pathlib
+import logging
+from logging.handlers import RotatingFileHandler
 from httpx import AsyncClient
-from fastapi import FastAPI, HTTPException, WebSocket
+from fastapi import FastAPI, HTTPException, WebSocket, Request
 from fastapi.middleware.cors import CORSMiddleware
-from fastapi.responses import Response, FileResponse
+from fastapi.responses import Response, FileResponse, RedirectResponse
+from fastapi.staticfiles import StaticFiles
 from pydantic import BaseModel
 import sqlite3
 import io
@@ -19,7 +30,19 @@ from colorthief import ColorThief
 import threading
 import pystray
 import webbrowser
-from PIL import Image, ImageFilter
+# =====================
+# PATH HELPERS
+# =====================
+def resource_path(relative_path):
+    """ Get absolute path to resource, works for dev and for PyInstaller """
+    try:
+        # PyInstaller creates a temp folder and stores path in _MEIPASS
+        base_path = sys._MEIPASS
+    except Exception:
+        base_path = os.path.dirname(os.path.abspath(__file__))
+
+    return os.path.join(base_path, relative_path)
+
 # APP SETUP
 # =====================
 app = FastAPI()
@@ -27,6 +50,7 @@ app = FastAPI()
 app.add_middleware(
     CORSMiddleware,
     allow_origins=["*"],
+    allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
 )
@@ -44,12 +68,34 @@ MORGI_DIR = os.path.join(base_dir, 'MorgiFile')
 SAFE_STORAGE = os.path.join(MORGI_DIR, 'Safe')
 THUMB_STORAGE = os.path.join(MORGI_DIR, 'Thumb')
 DB_DIR = os.path.join(MORGI_DIR, 'Database')
+LOGS_DIR = os.path.join(MORGI_DIR, 'Logs')
 
 os.makedirs(SAFE_STORAGE, exist_ok=True)
 os.makedirs(THUMB_STORAGE, exist_ok=True)
 os.makedirs(DB_DIR, exist_ok=True)
+os.makedirs(LOGS_DIR, exist_ok=True)
 
 DB_FILE = os.path.join(DB_DIR, "morgifile.db")
+
+# =====================
+# LOGGING SETUP
+# =====================
+LOG_FILE = os.path.join(LOGS_DIR, "morgifile.log")
+
+logging.basicConfig(
+    level=logging.INFO,
+    format='%(asctime)s - %(name)s - %(levelname)s - %(message)s',
+    handlers=[
+        RotatingFileHandler(LOG_FILE, maxBytes=5*1024*1024, backupCount=5, encoding='utf-8'),
+        logging.StreamHandler()
+    ]
+)
+logger = logging.getLogger("MorgiFile")
+
+@app.exception_handler(Exception)
+async def global_exception_handler(request: Request, exc: Exception):
+    logger.error(f"Global error on {request.url.path}: {exc}", exc_info=True)
+    return Response(content=json.dumps({"detail": str(exc)}), status_code=500, media_type="application/json")
 
 # Lock mechanism
 db_lock = asyncio.Lock()
@@ -86,19 +132,19 @@ def init_db():
 
     try:
         cursor.execute("ALTER TABLE images ADD COLUMN sourceUrl TEXT")
-        print("[OK] sourceUrl sütunu başarıyla eklendi!")
+        logger.info("sourceUrl sütunu başarıyla eklendi!")
     except sqlite3.OperationalError:
         pass
 
     try:
         cursor.execute("ALTER TABLE images ADD COLUMN mainColor TEXT")
-        print("[OK] mainColor sütunu eklendi!")
+        logger.info("mainColor sütunu eklendi!")
     except sqlite3.OperationalError:
         pass
 
     try:
         cursor.execute("ALTER TABLE images ADD COLUMN colors TEXT")
-        print("[OK] colors sütunu eklendi!")
+        logger.info("colors sütunu eklendi!")
     except sqlite3.OperationalError:
         pass
 
@@ -116,7 +162,7 @@ def init_db():
 
     conn.commit()
     conn.close()
-    print("[OK] Database engine ready (SQLite)!")
+    logger.info("Database engine ready (SQLite)!")
 
 init_db()
 
@@ -462,9 +508,9 @@ async def empty_trash():
         try:
             if os.path.exists(safe_path):
                 os.remove(safe_path)
-                print(f"🗑️ Deleted from disk: {safe_path}")
+                logger.info(f"🗑️ Deleted from disk: {safe_path}")
         except Exception as e:
-            print(f"⚠️ Error deleting file ( {safe_path} ): {e}")
+            logger.error(f"⚠️ Error deleting file ( {safe_path} ): {e}")
 
     conn.execute("DELETE FROM images WHERE isDeleted = 1")
     conn.commit()
@@ -487,9 +533,9 @@ async def permanent_delete(img_id: str):
         try:
             if os.path.exists(safe_path):
                 os.remove(safe_path)
-                print(f"🗑️ File deleted from disk: {safe_path}")
+                logger.info(f"🗑️ File deleted from disk: {safe_path}")
         except Exception as e:
-            print(f"⚠️ Error deleting file: {e}")
+            logger.error(f"⚠️ Error deleting file: {e}")
 
     conn.execute("DELETE FROM images WHERE id = ?", (img_id,))
     conn.commit()
@@ -527,12 +573,12 @@ async def move_image_to_trash(image_id: str):
 @app.websocket("/ws")
 async def websocket_endpoint(websocket: WebSocket):
     await manager.connect(websocket)
-    print("✅ WS connected")
+    logger.info("✅ WS connected")
     try:
         while True:
             msg = await websocket.receive_text()
     except Exception as e:
-        print("❌ WS disconnected:", e)
+        logger.info(f"❌ WS disconnected: {e}")
         manager.disconnect(websocket)
 
 @app.get("/safe-file")
@@ -591,7 +637,7 @@ async def check_image(url: str):
     return {"exists": False}
 
 async def create_thumbnail(url: str, img_id: str):
-    print(f"🔄 Arkaplanda thumbnail indirmesi başladı: {img_id}")
+    logger.info(f"🔄 Arkaplanda thumbnail indirmesi başladı: {img_id}")
     try:
         headers = {
             "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/121.0.0.0 Safari/537.36",
@@ -605,7 +651,7 @@ async def create_thumbnail(url: str, img_id: str):
         async with AsyncClient(follow_redirects=True, timeout=20) as client:
             resp = await client.get(url, headers=headers)
             
-        print(f"📥 Thumbnail GET isteği sonucu: {resp.status_code}")
+        logger.debug(f"📥 Thumbnail GET isteği sonucu: {resp.status_code}")
         if resp.status_code == 200:
             def process_image(data):
                 # 1. Main Color Extraction
@@ -620,7 +666,7 @@ async def create_thumbnail(url: str, img_id: str):
                     conn.commit()
                     conn.close()
                 except Exception as ce:
-                    print(f"⚠️ Main color could not be extracted: {ce}")
+                    logger.warning(f"⚠️ Main color could not be extracted: {ce}")
 
                 img = Image.open(io.BytesIO(data))
                 if img.mode != 'RGB':
@@ -646,7 +692,7 @@ async def create_thumbnail(url: str, img_id: str):
                 
                 save_path = os.path.join(THUMB_STORAGE, f"{img_id}.jpg")
                 img.save(save_path, "JPEG", quality=85)
-                print(f"💾 Thumbnail başarıyla dosyaya yazıldı: {save_path}")
+                logger.info(f"💾 Thumbnail başarıyla dosyaya yazıldı: {save_path}")
                 return main_color_hex
 
             extracted_color = await asyncio.to_thread(process_image, resp.content)
@@ -655,11 +701,11 @@ async def create_thumbnail(url: str, img_id: str):
                     "type": "IMAGE_UPDATED",
                     "payload": { "id": img_id, "mainColor": extracted_color }
                 })
-            print(f"✅ Thumbnail created for {img_id}")
+            logger.info(f"✅ Thumbnail created for {img_id}")
         else:
-            print(f"⚠️ Thumbnail indirilemedi! Durum Kodu: {resp.status_code} - Link: {url}")
+            logger.warning(f"⚠️ Thumbnail indirilemedi! Durum Kodu: {resp.status_code} - Link: {url}")
     except Exception as e:
-        print(f"❌ Failed to create thumbnail for {img_id}: {e}")
+        logger.error(f"❌ Failed to create thumbnail for {img_id}: {e}")
 
 @app.get("/thumbnail/{img_id}")
 async def get_thumbnail(img_id: str):
@@ -718,7 +764,7 @@ async def extract_colors(img_id: str):
 # SYSTEM TRAY LOGIC
 # =====================
 def run_tray():
-    icon_path = os.path.join(os.path.dirname(__file__), "icon.png")
+    icon_path = resource_path("icon.png")
     if not os.path.exists(icon_path):
         # Fallback if icon is missing
         image = Image.new('RGB', (64, 64), color = (37, 99, 235))
@@ -730,7 +776,7 @@ def run_tray():
         os._exit(0)
 
     def on_open_dashboard(icon, item):
-        webbrowser.open("http://localhost:5173")
+        webbrowser.open("http://localhost:8000")
 
     menu = pystray.Menu(
         pystray.MenuItem("Open Dashboard", on_open_dashboard),
@@ -740,14 +786,29 @@ def run_tray():
     icon = pystray.Icon("MorgiFile", image, "MorgiFile Server", menu)
     icon.run()
 
+# Mount Static Files (Dashboard)
+@app.get("/")
+async def read_index():
+    index_path = os.path.join(resource_path("dist"), "index.html")
+    if os.path.exists(index_path):
+        return FileResponse(index_path)
+    return {"error": "Dashboard index.html not found", "path": index_path}
+
+dist_path = resource_path("dist")
+print(f"DEBUG: Dist yolu araniyor: {dist_path}")
+if os.path.exists(dist_path):
+    app.mount("/", StaticFiles(directory=dist_path, html=True), name="static")
+    print(f"DEBUG: Dashboard basariyla yuklendi.")
+else:
+    print(f"DEBUG ERROR: Dashboard klasoru BULUNAMADI!")
+
 if __name__ == "__main__":
     import uvicorn
     
     # Start server in a background thread
+    # Start server in a background thread
     def start_server():
-        config = uvicorn.Config(app, host="127.0.0.1", port=8000, log_level="info")
-        server = uvicorn.Server(config)
-        server.run()
+        uvicorn.run(app, host="127.0.0.1", port=8000, log_level="info")
 
     server_thread = threading.Thread(target=start_server, daemon=True)
     server_thread.start()

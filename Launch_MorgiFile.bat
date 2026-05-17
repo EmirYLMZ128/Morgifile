@@ -7,7 +7,7 @@ echo Starting MorgiFile Fully System...
 echo ========================================
 
 echo.
-echo [1/3] Starting Python Backend (System Tray)...
+echo [1/3] Starting Python Backend Server...
 cd /d "%~dp0App"
 REM Check if common package is missing (using pystray as marker)
 python -c "import pystray" 2>nul
@@ -15,7 +15,7 @@ if errorlevel 1 (
     echo Python dependencies missing. Installing...
     pip install -r requirements.txt
 )
-start "MorgiFile Backend" /b pythonw app.py
+start "MorgiFile Backend" cmd /k "python app.py"
 
 echo [2/3] Starting Vue Frontend Server...
 cd /d "%~dp0App\Dashboard"
@@ -34,5 +34,5 @@ echo Launching Dashboard in default browser...
 start http://localhost:5173
 
 echo.
-echo Done! You can close this launcher window now.
+echo Done! Servers are running in separate windows.
 timeout /t 3 > nul
