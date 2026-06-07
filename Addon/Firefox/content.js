@@ -12,7 +12,7 @@ try {
     if (unwrappedEvent && unwrappedEvent.prototype) {
       const originalTargetGetter = Object.getOwnPropertyDescriptor(unwrappedEvent.prototype, 'target')?.get;
       if (originalTargetGetter) {
-        const safeGetter = exportFunction(function() {
+        const safeGetter = exportFunction(function () {
           const target = originalTargetGetter.call(this);
           if (target && (target.id === 'morgi-main-host' || target.id === 'morgi-picker-host')) {
             if (target.hasAttribute('data-active-input')) {
@@ -31,7 +31,7 @@ try {
       // Overriding Event.prototype.srcElement
       const originalSrcElementGetter = Object.getOwnPropertyDescriptor(unwrappedEvent.prototype, 'srcElement')?.get;
       if (originalSrcElementGetter) {
-        const safeSrcGetter = exportFunction(function() {
+        const safeSrcGetter = exportFunction(function () {
           const srcEl = originalSrcElementGetter.call(this);
           if (srcEl && (srcEl.id === 'morgi-main-host' || srcEl.id === 'morgi-picker-host')) {
             if (srcEl.hasAttribute('data-active-input')) {
@@ -52,7 +52,7 @@ try {
     if (unwrappedDocument && unwrappedDocument.prototype) {
       const originalActiveElementGetter = Object.getOwnPropertyDescriptor(unwrappedDocument.prototype, 'activeElement')?.get;
       if (originalActiveElementGetter) {
-        const safeActiveGetter = exportFunction(function() {
+        const safeActiveGetter = exportFunction(function () {
           const activeEl = originalActiveElementGetter.call(this);
           if (activeEl && (activeEl.id === 'morgi-main-host' || activeEl.id === 'morgi-picker-host')) {
             if (activeEl.hasAttribute('data-active-input')) {
