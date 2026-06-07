@@ -1,4 +1,80 @@
 // =====================
+// EVASION / SHADOW DOM INPUT TARGET FIX
+// =====================
+try {
+  const hostname = window.location.hostname;
+  if (hostname !== 'localhost' && hostname !== '127.0.0.1' && typeof window.wrappedJSObject !== 'undefined') {
+    const unwrappedEvent = window.wrappedJSObject.Event;
+    const unwrappedDocument = window.wrappedJSObject.Document;
+    const dummyInput = window.wrappedJSObject.document.createElement('input');
+
+    // Overriding Event.prototype.target
+    if (unwrappedEvent && unwrappedEvent.prototype) {
+      const originalTargetGetter = Object.getOwnPropertyDescriptor(unwrappedEvent.prototype, 'target')?.get;
+      if (originalTargetGetter) {
+        const safeGetter = exportFunction(function() {
+          const target = originalTargetGetter.call(this);
+          if (target && (target.id === 'morgi-main-host' || target.id === 'morgi-picker-host')) {
+            if (target.hasAttribute('data-active-input')) {
+              return dummyInput;
+            }
+          }
+          return target;
+        }, window.wrappedJSObject);
+
+        Object.defineProperty(unwrappedEvent.prototype, 'target', {
+          get: safeGetter,
+          configurable: true
+        });
+      }
+
+      // Overriding Event.prototype.srcElement
+      const originalSrcElementGetter = Object.getOwnPropertyDescriptor(unwrappedEvent.prototype, 'srcElement')?.get;
+      if (originalSrcElementGetter) {
+        const safeSrcGetter = exportFunction(function() {
+          const srcEl = originalSrcElementGetter.call(this);
+          if (srcEl && (srcEl.id === 'morgi-main-host' || srcEl.id === 'morgi-picker-host')) {
+            if (srcEl.hasAttribute('data-active-input')) {
+              return dummyInput;
+            }
+          }
+          return srcEl;
+        }, window.wrappedJSObject);
+
+        Object.defineProperty(unwrappedEvent.prototype, 'srcElement', {
+          get: safeSrcGetter,
+          configurable: true
+        });
+      }
+    }
+
+    // Overriding Document.prototype.activeElement
+    if (unwrappedDocument && unwrappedDocument.prototype) {
+      const originalActiveElementGetter = Object.getOwnPropertyDescriptor(unwrappedDocument.prototype, 'activeElement')?.get;
+      if (originalActiveElementGetter) {
+        const safeActiveGetter = exportFunction(function() {
+          const activeEl = originalActiveElementGetter.call(this);
+          if (activeEl && (activeEl.id === 'morgi-main-host' || activeEl.id === 'morgi-picker-host')) {
+            if (activeEl.hasAttribute('data-active-input')) {
+              return dummyInput;
+            }
+          }
+          return activeEl;
+        }, window.wrappedJSObject);
+
+        Object.defineProperty(unwrappedDocument.prototype, 'activeElement', {
+          get: safeActiveGetter,
+          configurable: true
+        });
+      }
+    }
+  }
+} catch (e) {
+  console.error("MorgiFile: Shadow DOM input target fix failed:", e);
+}
+
+
+// =====================
 // SITE DISABLE CHECK
 // =====================
 chrome.storage.local.get([window.location.hostname, 'theme'], (res) => {
@@ -42,13 +118,14 @@ function mainExtensionCode() {
     lastY = e.clientY;
   }, true);
 
+
   chrome.runtime.onMessage.addListener((request) => {
     if (request.action === "LOG_NEAREST_IMAGE") {
       const images = findBestImages(lastX, lastY);
       if (!images.length) return;
 
       images.length === 1
-        // ✨ GÜNCELLEME: Artık elementi de (images[0].element) gönderiyoruz
+        // Send both the image URL and its DOM element
         ? showCategoryModal(images[0].url, images[0].element)
         : showInitialPicker(images);
     }
@@ -98,6 +175,28 @@ function createShadowHost(id) {
   link.setAttribute("href", chrome.runtime.getURL("modal/style.css") + "?v=" + Date.now());
 
   shadow.append(link, overlay);
+
+  const handleActiveInputCheck = (e) => {
+    const active = e.target || shadow.activeElement;
+    if (active && (active.tagName === 'INPUT' || active.tagName === 'TEXTAREA')) {
+      host.setAttribute("data-active-input", "true");
+    } else {
+      host.removeAttribute("data-active-input");
+    }
+  };
+
+  ['pointerdown', 'mousedown', 'focusin'].forEach(evt => {
+    shadow.addEventListener(evt, handleActiveInputCheck, true);
+  });
+
+  shadow.addEventListener("focusout", () => {
+    setTimeout(() => {
+      const active = shadow.activeElement;
+      if (!active || (active.tagName !== 'INPUT' && active.tagName !== 'TEXTAREA')) {
+        host.removeAttribute("data-active-input");
+      }
+    }, 10);
+  });
 
   // Apply theme to host
   chrome.storage.local.get(['theme'], (res) => {
@@ -149,7 +248,7 @@ function showInitialPicker(images) {
 
     item.onclick = () => {
       host.remove();
-      // ✨ GÜNCELLEME: Seçilen resmin elementini de gönderiyoruz
+      // Pass the selected image element along with its URL
       showCategoryModal(imgData.url, imgData.element);
     };
 
@@ -162,12 +261,10 @@ function showInitialPicker(images) {
 // =====================
 // UI: SINGLE IMAGE CATEGORY MODAL
 // =====================
-// ✨ GÜNCELLEME: Parametrelere imgElement eklendi
 async function showCategoryModal(imgUrl, imgElement) {
   categoryCache = null;
   const { host, shadow, overlay } = createShadowHost("morgi-main-host");
   overlay.appendChild(buildModalHTML(imgUrl, location.hostname));
-  // ✨ GÜNCELLEME: imgElement'i içeri aktarıyoruz
   setupModalLogic(shadow, host, imgUrl, imgElement);
 }
 
@@ -267,7 +364,6 @@ function buildModalHTML(imgUrl, siteAddress) {
 // =====================
 // LOGIC: MODAL INTERACTIONS
 // =====================
-// ✨ GÜNCELLEME: Parametrelere imgElement eklendi
 async function setupModalLogic(shadow, host, imgUrl, imgElement) {
   const resEl = shadow.getElementById("radar-res-val");
   const btn = shadow.getElementById("save-btn");
@@ -428,119 +524,32 @@ async function setupModalLogic(shadow, host, imgUrl, imgElement) {
     resetCategoryCreationUI();
   });
 
-  // ✨ GÜNCELLEME: Save butonuna basınca imgElement'i de yolluyoruz
+  // Pass imgElement to handleSave so we can extract the source URL
   btn.onclick = () => handleSave(btn, shadow, host, imgUrl, imgElement);
 }
 
 // =====================
-// PURE UNIVERSAL SOURCE URL EXTRACTOR V10.1 (Google Kutu Fix)
+// SOURCE URL EXTRACTOR - Returns the closest link at the right-clicked position
 // =====================
 function extractSourceUrl(imgElement) {
   const currentUrl = window.location.href;
-  if (!imgElement) return currentUrl;
 
-  const currentHost = window.location.hostname.replace('www.', '');
-  const isValid = (href) => href && !href.startsWith('javascript') && href !== '#' && href !== currentUrl;
-
-  // 🌟 0. ADIM: GOOGLE GÖRSELLER (Kutu Yakalama Stratejisi)
-  if (currentHost.includes('google')) {
-    // Önce resmi saran o "Ana Kutuyu" buluyoruz (Google'ın özel class'ları)
-    const gridItem = imgElement.closest('div[jsname="dTDiAc"], div.isv-r, div.ivg-i');
-
-    if (gridItem) {
-      // Şimdi o kutunun İÇİNDEKİ imgres linkini arıyoruz (Amcaoğlunu bulduk!)
-      const googleClickable = gridItem.querySelector('a[href*="imgres"]');
-      if (googleClickable) {
-        try {
-          const urlParams = new URLSearchParams(new URL(googleClickable.href).search);
-          const originalUrl = urlParams.get('imgrefurl');
-          if (originalUrl) return originalUrl;
-        } catch (e) { }
-        return googleClickable.href;
-      }
-    }
-
-    const directA = imgElement.closest('a[href*="imgres"]');
-    if (directA) {
-      try {
-        const urlParams = new URLSearchParams(new URL(directA.href).search);
-        const originalUrl = urlParams.get('imgrefurl');
-        if (originalUrl) return originalUrl;
-      } catch (e) { }
-      return directA.href;
-    }
+  // First, check if the image element itself is wrapped in an <a> tag
+  const imgA = imgElement ? imgElement.closest('a') : null;
+  if (imgA && imgA.href && imgA.href !== '#' && !imgA.href.startsWith('javascript')) {
+    return imgA.href;
   }
 
-  let closestLink = imgElement.closest('a');
-  if (closestLink && isValid(closestLink.href)) {
-    const path = closestLink.pathname.toLowerCase();
-    if (/\/(photos|artwork|sites|image-|p\/|gallery|shots|comments)\//.test(path)) {
-      if (!path.includes('download')) return closestLink.href;
-    }
-  }
-
+  // Fallback: walk up from imgElement to find nearest anchor
   let parent = imgElement;
-  let candidates = [];
-  const containerTags = ['ARTICLE', 'SECTION', 'FIGURE', 'LI', 'PROJECTS-LIST-ITEM', 'DIV'];
-
-  for (let i = 0; i < 12; i++) {
-    if (!parent || parent.tagName === 'BODY') break;
-
-    const links = Array.from(parent.querySelectorAll('a')).filter(a => isValid(a.href));
-
-    links.forEach(link => {
-      let score = 0;
-      const urlObj = new URL(link.href);
-      const linkHost = urlObj.hostname.replace('www.', '');
-      const path = urlObj.pathname.toLowerCase();
-      const fullHref = link.href.toLowerCase();
-      const pathSegments = path.split('/').filter(p => p.length > 0);
-
-      if (/\/(photos|artwork|sites|image-|p|e|v|pin|sh|shots|gallery|article|post|reels|item|product|gp|details|comments)\//.test(path)) {
-        score += 300;
-      }
-
-      if (/\d{5,}/.test(path) || pathSegments.some(s => s.length > 10)) score += 100;
-
-      if (/(download|login|signup|signin|register|subscribe|membership|auth|search|tags|category|branding|author|profile|settings|about|contact|legal|help|explore|policy|rules|itunes|apple|play\.google|canva|microsoft)/.test(fullHref)) {
-        score -= 600;
-      }
-
-      if (pathSegments.length === 1 && !/\d{5,}/.test(path)) score -= 400;
-
-
-      if (linkHost === currentHost) score += 100;
-      score += (pathSegments.length * 25);
-
-      candidates.push({ href: link.href, score: score, distance: i });
-    });
-
-    if (i > 2 && containerTags.some(t => parent.tagName === t || parent.classList.contains(t.toLowerCase())) && candidates.length > 0) {
-      const best = candidates.sort((a, b) => b.score - a.score)[0];
-      if (best.score > 200) break;
+  while (parent && parent.tagName !== 'BODY') {
+    if (parent.tagName === 'A' && parent.href && parent.href !== '#' && !parent.href.startsWith('javascript')) {
+      return parent.href;
     }
-
     parent = parent.parentElement;
   }
 
-  if (candidates.length > 0) {
-    candidates.sort((a, b) => b.score - a.score || a.distance - b.distance);
-    if (candidates[0].score > 0) return candidates[0].href;
-  }
-
-
-  const spaRoutes = { 'data-elt-id': '/e/', 'data-shot-id': '/shots/', 'data-pin-id': '/pin/', 'data-post-id': '/post/' };
-  let idParent = imgElement;
-  for (let i = 0; i < 8; i++) {
-    if (!idParent) break;
-    if (idParent.attributes) {
-      for (let attr of idParent.attributes) {
-        if (spaRoutes[attr.name]) return `${window.location.origin}${spaRoutes[attr.name]}${attr.value}`;
-      }
-    }
-    idParent = idParent.parentElement;
-  }
-
+  // Fallback to the current page URL if no link is found
   return currentUrl;
 }
 
@@ -676,6 +685,9 @@ function markImageAsSaved(url) {
   });
 }
 
+// =====================
+// HELPER FOR NORMALIZING URL
+// =====================
 function normalizeUrl(url) {
   return url.split("?")[0];
 }
@@ -698,7 +710,7 @@ function findBestImages(x, y) {
       : (getComputedStyle(el).backgroundImage.match(BG_IMAGE_REGEX) || [])[1];
 
     if (url && !url.includes("data:image/svg")) {
-      // ✨ GÜNCELLEME: Burada artık "element: el" diyerek HTML etiketini de ekliyoruz
+      // Include the DOM element reference for later use (source URL extraction, dimensions)
       matches.push({ url, area: r.width * r.height, dist, element: el });
     }
   }
@@ -719,7 +731,7 @@ function showInlineMessage(text, bgColor = "#1e1e1e") {
     padding: 14px 24px;
     border-radius: 14px;
     box-shadow: 0 10px 25px rgba(0,0,0,0.5);
-    z-index: 2147483647; /* Modalın en üstünde görünmesi için */
+    z-index: 2147483647; /* Always render on top of page content */
     font-size: 14px;
     font-weight: 600;
     border: 1px solid rgba(255,255,255,0.1);

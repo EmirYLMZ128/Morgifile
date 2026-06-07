@@ -124,7 +124,7 @@ async function scanForMorgiFile() {
       type: "basic",
       iconUrl: "icons/128.png",
       title: "MorgiFile Offline",
-      message: "Uygulama kapalı. Lütfen MorgiFile uygulamasını başlatın!"
+      message: "Application is offline. Please start the MorgiFile application!"
     });
   }
   

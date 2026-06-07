@@ -124,14 +124,14 @@ async function scanForMorgiFile() {
       type: "basic",
       iconUrl: "icons/128.png",
       title: "MorgiFile Offline",
-      message: "Uygulama kapalı. Lütfen MorgiFile uygulamasını başlatın!"
+      message: "Application is offline. Please start the MorgiFile application!"
     });
   }
   
   isScanning = false;
 }
 
-/* API PROXY — Tüm backend istekleri service worker üzerinden geçer (CORS/PNA bypass) */
+/* API PROXY — All backend requests go through the service worker (CORS/PNA bypass) */
 async function bgFetch(path, options = {}) {
   const result = await chrome.storage.local.get(["morgi_port"]);
   const port = result.morgi_port || 8000;

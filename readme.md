@@ -8,6 +8,8 @@
 
 [🇹🇷 Türkçe README](readme_Tr.md) | [🧩 Addon Docs](Addon/README.md) | [📊 Dashboard Docs](App/Dashboard/README.md)
 
+[🌐 Chrome Web Store](https://chromewebstore.google.com/detail/morgifile/icgiihngfimipelnnmcelcidjjoifdbo?hl=tr) | [🦊 Firefox Add-ons](https://addons.mozilla.org/tr/firefox/addon/morgifile/)
+
 Morgifile is a powerful **Firefox extension + web dashboard** application designed to seamlessly archive, categorize, and manage web images. Acting as a true "Designer's Assistant," it ensures your visual inspiration is always safe and organized.
 
 The project consists of a Firefox extension (featuring an isolated UI), a locally running Python server (FastAPI), and a modern **Vue.js** dashboard interface that visualizes and manages the collected data.

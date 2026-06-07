@@ -11,7 +11,8 @@
   },
   "permissions": [
     "contextMenus",
-    "storage"
+    "storage",
+    "notifications"
   ],
   "host_permissions": [
     "http://127.0.0.1/*",
@@ -42,6 +43,16 @@
       "js": [
         "content.js"
       ]
+    },
+    {
+      "matches": [
+        "<all_urls>"
+      ],
+      "js": [
+        "content.js"
+      ],
+      "world": "MAIN",
+      "run_at": "document_start"
     }
   ],
   "web_accessible_resources": [

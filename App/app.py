@@ -614,6 +614,17 @@ async def proxy_image(url: str):
         "Accept": "image/avif,image/webp,image/apng,image/*,*/*;q=0.8",
     }
     try:
+        if url.startswith("data:"):
+            import base64
+            import re
+            header, base64_data = url.split(',', 1)
+            content = base64.b64decode(base64_data)
+            content_type = "image/jpeg"
+            match = re.match(r'^data:(image/[^;]+);base64', header, re.IGNORECASE)
+            if match:
+                content_type = match.group(1)
+            return Response(content=content, media_type=content_type, headers={"Cache-Control": "public, max-age=86400"})
+            
         async with AsyncClient(follow_redirects=True, timeout=20) as client:
             resp = await client.get(url, headers=headers)
         if resp.status_code != 200:
@@ -654,6 +665,7 @@ async def check_image(url: str):
         return {"exists": True}
     return {"exists": False}
 
+
 async def create_thumbnail(url: str, img_id: str):
     logger.info(f"🔄 Arkaplanda thumbnail indirmesi başladı: {img_id}")
     try:
@@ -666,11 +678,20 @@ async def create_thumbnail(url: str, img_id: str):
             "Sec-Fetch-Mode": "no-cors",
             "Sec-Fetch-Site": "cross-site",
         }
-        async with AsyncClient(follow_redirects=True, timeout=20) as client:
-            resp = await client.get(url, headers=headers)
+        
+        if url.startswith("data:"):
+            import base64
+            _, base64_data = url.split(',', 1)
+            content = base64.b64decode(base64_data)
+            status_code = 200
+        else:
+            async with AsyncClient(follow_redirects=True, timeout=20) as client:
+                resp = await client.get(url, headers=headers)
+            content = resp.content
+            status_code = resp.status_code
             
-        logger.debug(f"📥 Thumbnail GET isteği sonucu: {resp.status_code}")
-        if resp.status_code == 200:
+        logger.debug(f"📥 Thumbnail GET isteği sonucu: {status_code}")
+        if status_code == 200:
             def process_image(data):
                 # 1. Main Color Extraction
                 main_color_hex = None
@@ -713,7 +734,7 @@ async def create_thumbnail(url: str, img_id: str):
                 logger.info(f"💾 Thumbnail başarıyla dosyaya yazıldı: {save_path}")
                 return main_color_hex
 
-            extracted_color = await asyncio.to_thread(process_image, resp.content)
+            extracted_color = await asyncio.to_thread(process_image, content)
             if extracted_color:
                 await manager.broadcast({
                     "type": "IMAGE_UPDATED",
@@ -721,7 +742,7 @@ async def create_thumbnail(url: str, img_id: str):
                 })
             logger.info(f"✅ Thumbnail created for {img_id}")
         else:
-            logger.warning(f"⚠️ Thumbnail indirilemedi! Durum Kodu: {resp.status_code} - Link: {url}")
+            logger.warning(f"⚠️ Thumbnail indirilemedi! Durum Kodu: {status_code} - Link: {url}")
     except Exception as e:
         logger.error(f"❌ Failed to create thumbnail for {img_id}: {e}")
 
@@ -750,16 +771,24 @@ async def extract_colors(img_id: str):
         "Referer": "https://www.instagram.com/",
     }
     try:
-        async with AsyncClient(follow_redirects=True, timeout=20) as client:
-            resp = await client.get(url, headers=headers)
+        if url.startswith("data:"):
+            import base64
+            _, base64_data = url.split(',', 1)
+            content = base64.b64decode(base64_data)
+            status_code = 200
+        else:
+            async with AsyncClient(follow_redirects=True, timeout=20) as client:
+                resp = await client.get(url, headers=headers)
+            content = resp.content
+            status_code = resp.status_code
             
-        if resp.status_code == 200:
+        if status_code == 200:
             def get_palette(data):
                 ct = ColorThief(io.BytesIO(data))
                 palette_rgb = ct.get_palette(color_count=6, quality=1)
                 return ['#%02x%02x%02x' % c for c in palette_rgb[:5]]
                 
-            hex_colors = await asyncio.to_thread(get_palette, resp.content)
+            hex_colors = await asyncio.to_thread(get_palette, content)
             colors_json = json.dumps(hex_colors)
             
             conn.execute("UPDATE images SET colors = ? WHERE id = ?", (colors_json, img_id))
@@ -848,8 +877,81 @@ def find_available_port(start_port=8000, max_port=8050):
             
     # Fallback to random OS port
     return 0
+# =====================
+# SINGLE INSTANCE LOCK
+# =====================
+_windows_mutex = None
+_mac_lock_file = None
+
+def check_single_instance():
+    global _windows_mutex, _mac_lock_file
+    
+    if sys.platform == 'win32':
+        import ctypes
+        from ctypes import c_uint, c_void_p, c_wchar_p, Structure
+        
+        # Create a unique named mutex to prevent multiple instances on Windows.
+        # We use a session-local mutex to avoid admin permission requirements.
+        _windows_mutex = ctypes.windll.kernel32.CreateMutexW(None, True, "MorgiFile_Single_Instance_Mutex")
+        last_error = ctypes.windll.kernel32.GetLastError()
+        
+        if last_error == 183: # ERROR_ALREADY_EXISTS
+            logger.warning("MorgiFile is already running (Windows Mutex lock). Exiting duplicate instance.")
+            
+            # Custom structure for MessageBoxIndirectW to load the application's own icon
+            class MSGBOXPARAMSW(Structure):
+                _fields_ = [
+                    ("cbSize", c_uint),
+                    ("hwndOwner", c_void_p),
+                    ("hInstance", c_void_p),
+                    ("lpszText", c_wchar_p),
+                    ("lpszCaption", c_wchar_p),
+                    ("dwStyle", c_uint),
+                    ("lpszIcon", c_void_p),
+                    ("dwContextHelpId", c_void_p),
+                    ("lpfnMsgBoxCallback", c_void_p),
+                    ("dwLanguageId", c_uint),
+                ]
+            
+            try:
+                h_instance = ctypes.windll.kernel32.GetModuleHandleW(None)
+                params = MSGBOXPARAMSW()
+                params.cbSize = ctypes.sizeof(MSGBOXPARAMSW)
+                params.hwndOwner = None
+                params.hInstance = h_instance
+                params.lpszText = "MorgiFile is already running in the system tray."
+                params.lpszCaption = "MorgiFile"
+                # MB_OK = 0x00000000, MB_USERICON = 0x00000080
+                params.dwStyle = 0x00000000 | 0x00000080
+                params.lpszIcon = ctypes.c_void_p(1) # PyInstaller default icon resource ID is 1
+                
+                result = ctypes.windll.user32.MessageBoxIndirectW(ctypes.byref(params))
+                if result == 0:
+                    # Fallback to standard message box with informational icon (MB_ICONINFORMATION = 0x00000040)
+                    ctypes.windll.user32.MessageBoxW(0, "MorgiFile is already running in the system tray.", "MorgiFile", 0x40)
+            except Exception:
+                try:
+                    ctypes.windll.user32.MessageBoxW(0, "MorgiFile is already running in the system tray.", "MorgiFile", 0x40)
+                except Exception:
+                    pass
+            
+            sys.exit(0)
+    else:
+        import fcntl
+        lock_file_path = os.path.expanduser('~/.morgifile.lock')
+        try:
+            _mac_lock_file = open(lock_file_path, 'w')
+            # Try to acquire an exclusive non-blocking lock
+            fcntl.flock(_mac_lock_file, fcntl.LOCK_EX | fcntl.LOCK_NB)
+        except (IOError, BlockingIOError):
+            logger.warning("MorgiFile is already running (macOS flock). Exiting duplicate instance.")
+            if sys.platform == 'darwin':
+                # Trigger a native macOS desktop alert via AppleScript
+                os.system("osascript -e 'display alert \"MorgiFile\" message \"MorgiFile is already running in the background.\"' 2>/dev/null")
+            sys.exit(0)
 
 if __name__ == "__main__":
+    check_single_instance()
     import uvicorn
     
     actual_port = find_available_port()

@@ -1,7 +1,7 @@
 import { reactive, computed } from 'vue';
 
-export const BASE_URL = window.location.port === '5173' ? 'http://127.0.0.1:8000' : window.location.origin;
-const WS_BASE_URL = window.location.port === '5173' ? 'ws://127.0.0.1:8000' : `ws://${window.location.host}`;
+export let BASE_URL = window.location.port === '5173' ? 'http://127.0.0.1:8000' : window.location.origin;
+let WS_BASE_URL = window.location.port === '5173' ? 'ws://127.0.0.1:8000' : `ws://${window.location.host}`;
 
 export const store = reactive({
   images: [],
@@ -120,7 +120,55 @@ export async function fetchCategories() {
   }
 }
 
-export function initStore() {
+async function discoverBackendPort() {
+  const cachedPort = localStorage.getItem('morgi_backend_port');
+  if (cachedPort) {
+    try {
+      const res = await fetch(`http://127.0.0.1:${cachedPort}/api/ping`);
+      if (res.ok) {
+        const data = await res.json();
+        if (data.status === 'morgifile_online') {
+          return parseInt(cachedPort);
+        }
+      }
+    } catch (e) {}
+  }
+
+  // Scan parallelly
+  const scanPromises = [];
+  for (let port = 8000; port <= 8050; port++) {
+    scanPromises.push((async () => {
+      try {
+        const controller = new AbortController();
+        const timeoutId = setTimeout(() => controller.abort(), 200);
+        const res = await fetch(`http://127.0.0.1:${port}/api/ping`, { signal: controller.signal });
+        clearTimeout(timeoutId);
+        if (res.ok) {
+          const data = await res.json();
+          if (data.status === 'morgifile_online') {
+            return port;
+          }
+        }
+      } catch (e) {}
+      return null;
+    })());
+  }
+
+  const results = await Promise.all(scanPromises);
+  const foundPort = results.find(p => p !== null);
+  if (foundPort) {
+    localStorage.setItem('morgi_backend_port', foundPort);
+    return foundPort;
+  }
+  return 8000; // Fallback
+}
+
+export async function initStore() {
+  if (window.location.port === '5173') {
+    const port = await discoverBackendPort();
+    BASE_URL = `http://127.0.0.1:${port}`;
+    WS_BASE_URL = `ws://127.0.0.1:${port}`;
+  }
   fetchImages();
   fetchCategories();
   connectWebSocket();

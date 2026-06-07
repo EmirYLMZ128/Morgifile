@@ -8,6 +8,8 @@
 
 [🇬🇧 English README](readme.md) | [🧩 Eklenti Dokümanı](Addon/README.md) | [📊 Dashboard Dokümanı](App/Dashboard/README.md)
 
+[🌐 Chrome Web Mağazası](https://chromewebstore.google.com/detail/morgifile/icgiihngfimipelnnmcelcidjjoifdbo?hl=tr) | [🦊 Firefox Eklentileri](https://addons.mozilla.org/tr/firefox/addon/morgifile/)
+
 Morgifile, web üzerindeki görselleri sorunsuz bir şekilde arşivlemek, kategorize etmek ve yönetmek için tasarlanmış güçlü bir **Firefox eklentisi + web dashboard** uygulamasıdır. Gerçek bir "Tasarımcı Asistanı" olarak hareket ederek görsel ilhamınızın her zaman güvende ve düzenli olmasını sağlar.
 
 Proje; (izole bir arayüze sahip) bir Firefox eklentisi, yerel olarak çalışan bir Python sunucusu (FastAPI) ve toplanan verileri görselleştirip yönetmenizi sağlayan modern bir **Vue.js** dashboard arayüzünden oluşur.
