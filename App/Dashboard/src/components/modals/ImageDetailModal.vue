@@ -118,7 +118,7 @@
 
 <script setup>
 import { ref, computed, onMounted, onUnmounted } from 'vue';
-import { filteredImages } from '@/store';
+import { filteredImages, BASE_URL } from '@/store';
 
 const props = defineProps({
   isVisible: { type: Boolean, required: true },
@@ -143,7 +143,7 @@ async function extractColors() {
     if (isExtracting.value || !props.img.id) return;
     isExtracting.value = true;
     try {
-        const res = await fetch(`http://127.0.0.1:8000/images/${props.img.id}/extract-colors`, { method: "POST" });
+        const res = await fetch(`${BASE_URL}/images/${props.img.id}/extract-colors`, { method: "POST" });
         if (res.ok) {
             const data = await res.json();
             props.img.colors = data.colors;
@@ -201,9 +201,9 @@ const safeUrl = computed(() => encodeURIComponent(props.img.originalUrl || ''));
 
 const imgSrc = computed(() => {
   if (!props.img || !props.img.id) return '';
-  if (props.img.isDead) return `http://127.0.0.1:8000/thumbnail/${props.img.id}`;
-  if (props.img.isSafe && props.img.SafePath) return `http://127.0.0.1:8000/safe-file?path=${encodeURIComponent(props.img.SafePath)}`;
-  if (props.img.isCORS || props.img.proxyTried) return `http://127.0.0.1:8000/proxy/image?url=${encodeURIComponent(props.img.originalUrl)}`;
+  if (props.img.isDead) return `${BASE_URL}/thumbnail/${props.img.id}`;
+  if (props.img.isSafe && props.img.SafePath) return `${BASE_URL}/safe-file?path=${encodeURIComponent(props.img.SafePath)}`;
+  if (props.img.isCORS || props.img.proxyTried) return `${BASE_URL}/proxy/image?url=${encodeURIComponent(props.img.originalUrl)}`;
   return props.img.originalUrl;
 });
 

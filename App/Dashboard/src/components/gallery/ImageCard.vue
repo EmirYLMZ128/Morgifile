@@ -60,6 +60,7 @@
 
 <script setup>
 import { ref, watch, computed, onMounted } from 'vue';
+import { BASE_URL } from '../../store';
 
 const props = defineProps({
   img: { type: Object, required: true }
@@ -71,9 +72,9 @@ const isLoaded = ref(false);
 const isBroken = ref(false);
 
 const imgSrc = computed(() => {
-  if (props.img.isDead) return `http://127.0.0.1:8000/thumbnail/${props.img.id}`;
-  if (props.img.isSafe && props.img.SafePath) return `http://127.0.0.1:8000/safe-file?path=${encodeURIComponent(props.img.SafePath)}`;
-  if (props.img.isCORS || props.img.proxyTried) return `http://127.0.0.1:8000/proxy/image?url=${encodeURIComponent(props.img.originalUrl)}`;
+  if (props.img.isDead) return `${BASE_URL}/thumbnail/${props.img.id}`;
+  if (props.img.isSafe && props.img.SafePath) return `${BASE_URL}/safe-file?path=${encodeURIComponent(props.img.SafePath)}`;
+  if (props.img.isCORS || props.img.proxyTried) return `${BASE_URL}/proxy/image?url=${encodeURIComponent(props.img.originalUrl)}`;
   return props.img.originalUrl;
 });
 
