@@ -972,5 +972,11 @@ if __name__ == "__main__":
     # Wait slightly to ensure server thread starts before getting actual port if it was 0 (though uvicorn handles 0 internally, we won't know it easily. In our case it rarely reaches 0).
     time.sleep(0.5)
     
+    # Automatically open the dashboard in default browser on startup
+    try:
+        webbrowser.open(f"http://127.0.0.1:{actual_port}")
+    except Exception as e:
+        logger.error(f"Failed to open browser automatically: {e}")
+        
     # Run tray in the main thread (required for Windows)
     run_tray(actual_port)
