@@ -52,6 +52,19 @@
     
     .btn-deactive { background: var(--deactive); color: white; }
     .btn-active { background: var(--active); color: #000; }
+    .footer {
+      text-align: center;
+      margin-top: 14px;
+      font-size: 11px;
+    }
+    .footer a {
+      color: var(--accent);
+      text-decoration: none;
+      font-weight: 600;
+    }
+    .footer a:hover {
+      text-decoration: underline;
+    }
   </style>
 </head>
 <body>
@@ -60,6 +73,9 @@
     <span id="site-name" class="hostname">Detecting...</span>
   </div>
   <button id="toggle-btn" class="btn-deactive">Loading...</button>
+  <div class="footer">
+    <a href="https://github.com/EmirYLMZ128/Morgifile/issues/new" target="_blank">Report Issues</a>
+  </div>
   <script src="popup.js"></script>
 </body>
 </html>

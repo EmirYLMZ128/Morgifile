@@ -68,6 +68,46 @@ try {
         });
       }
     }
+
+    // Global Keyboard Event Interceptor using page context event listeners
+    const isMorgiInputFocused = function () {
+      const mainHost = document.getElementById('morgi-main-host');
+      if (mainHost) {
+        if (mainHost.hasAttribute('data-active-input')) {
+          return true;
+        }
+        if (mainHost.shadowRoot) {
+          const active = mainHost.shadowRoot.activeElement;
+          if (active && (active.tagName === 'INPUT' || active.tagName === 'TEXTAREA')) {
+            return true;
+          }
+        }
+      }
+      const pickerHost = document.getElementById('morgi-picker-host');
+      if (pickerHost) {
+        if (pickerHost.hasAttribute('data-active-input')) {
+          return true;
+        }
+        if (pickerHost.shadowRoot) {
+          const active = pickerHost.shadowRoot.activeElement;
+          if (active && (active.tagName === 'INPUT' || active.tagName === 'TEXTAREA')) {
+            return true;
+          }
+        }
+      }
+      return false;
+    };
+
+    const handleKeyIntercept = exportFunction(function (e) {
+      if (isMorgiInputFocused()) {
+        e.stopImmediatePropagation();
+      }
+    }, window.wrappedJSObject);
+
+    ['keydown', 'keyup', 'keypress'].forEach(evt => {
+      window.wrappedJSObject.addEventListener(evt, handleKeyIntercept, true);
+      window.wrappedJSObject.document.addEventListener(evt, handleKeyIntercept, true);
+    });
   }
 } catch (e) {
   console.error("MorgiFile: Shadow DOM input target fix failed:", e);
@@ -79,11 +119,26 @@ try {
 // =====================
 chrome.storage.local.get([window.location.hostname, 'theme'], (res) => {
   // Theme apply
-  if (res.theme === 'light') {
-    document.body.classList.add('light-mode');
-  } else {
-    document.body.classList.remove('light-mode');
-  }
+  const applyTheme = () => {
+    if (document.body) {
+      if (res.theme === 'light') {
+        document.body.classList.add('light-mode');
+      } else {
+        document.body.classList.remove('light-mode');
+      }
+    } else {
+      document.addEventListener('DOMContentLoaded', () => {
+        if (document.body) {
+          if (res.theme === 'light') {
+            document.body.classList.add('light-mode');
+          } else {
+            document.body.classList.remove('light-mode');
+          }
+        }
+      });
+    }
+  };
+  applyTheme();
 
   if (res[window.location.hostname] === true) {
     console.log("MorgiFile is Deactive on this site");

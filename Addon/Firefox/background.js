@@ -62,9 +62,11 @@ chrome.tabs.onUpdated.addListener((tabId, info, tab) => {
 });
 
 /* INSTALL */
-chrome.runtime.onInstalled.addListener(() => {
+chrome.runtime.onInstalled.addListener((details) => {
   refreshContextMenu(true);
-  // ❌ No notification
+  if (details.reason === "install") {
+    chrome.tabs.create({ url: chrome.runtime.getURL("Welcome/welcome.html") });
+  }
 });
 
 /* CONTEXT MENU */
