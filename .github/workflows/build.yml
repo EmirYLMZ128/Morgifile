@@ -77,8 +77,8 @@ jobs:
         run: python3 build_all.py
 
       - name: Package macOS DMG
+        working-directory: App/dist
         run: |
-          cd App/dist
           hdiutil create -volname "MorgiFile" -srcfolder MorgiFile.app -ov -format UDZO MorgiFile.dmg
 
       - name: Upload macOS Artifact

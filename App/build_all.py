@@ -11,11 +11,13 @@ def run_command(command, cwd=None):
     return True
 
 def build():
+    import sys
+    
     # 1. Build Vue Dashboard
     print("--- Building Vue Dashboard ---")
     dashboard_path = os.path.join(os.getcwd(), "Dashboard")
     if not run_command("npm run build", cwd=dashboard_path):
-        return
+        sys.exit(1)
 
     # 2. Copy dist to App folder
     print("--- Copying dist folder ---")
@@ -28,13 +30,13 @@ def build():
 
     # 3. Run PyInstaller
     print("--- Running PyInstaller ---")
-    import sys
     python_cmd = "python" if sys.platform == "win32" else "python3"
     sep = ";" if sys.platform == "win32" else ":"
+    icon_flag = '--icon=icon.png' if sys.platform == 'win32' else ''
     
     pyinstaller_cmd = (
         f'{python_cmd} -m PyInstaller --noconsole --onefile '
-        f'--icon=icon.png '
+        f'{icon_flag} '
         f'--add-data "icon.png{sep}." '
         f'--add-data "dist{sep}dist" '
         f'--name "MorgiFile" '
@@ -52,11 +54,11 @@ def build():
     )
     
     if not run_command(pyinstaller_cmd):
-        return
+        sys.exit(1)
 
     print("\n" + "="*30)
     print("BUILD COMPLETE!")
-    print("EXE location: dist/MorgiFile.exe")
+    print("Release location: dist/")
     print("="*30)
 
 if __name__ == "__main__":
