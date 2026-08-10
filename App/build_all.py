@@ -28,23 +28,27 @@ def build():
 
     # 3. Run PyInstaller
     print("--- Running PyInstaller ---")
+    import sys
+    python_cmd = "python" if sys.platform == "win32" else "python3"
+    sep = ";" if sys.platform == "win32" else ":"
+    
     pyinstaller_cmd = (
-        'python -m PyInstaller --noconsole --onefile '
-        '--icon=icon.png '
-        '--add-data "icon.png;." '
-        '--add-data "dist;dist" '
-        '--name "MorgiFile" '
-        '--hidden-import "uvicorn.logging" '
-        '--hidden-import "uvicorn.loops" '
-        '--hidden-import "uvicorn.loops.auto" '
-        '--hidden-import "uvicorn.protocols" '
-        '--hidden-import "uvicorn.protocols.http" '
-        '--hidden-import "uvicorn.protocols.http.auto" '
-        '--hidden-import "uvicorn.protocols.websockets" '
-        '--hidden-import "uvicorn.protocols.websockets.auto" '
-        '--hidden-import "uvicorn.lifespan" '
-        '--hidden-import "uvicorn.lifespan.on" '
-        'app.py'
+        f'{python_cmd} -m PyInstaller --noconsole --onefile '
+        f'--icon=icon.png '
+        f'--add-data "icon.png{sep}." '
+        f'--add-data "dist{sep}dist" '
+        f'--name "MorgiFile" '
+        f'--hidden-import "uvicorn.logging" '
+        f'--hidden-import "uvicorn.loops" '
+        f'--hidden-import "uvicorn.loops.auto" '
+        f'--hidden-import "uvicorn.protocols" '
+        f'--hidden-import "uvicorn.protocols.http" '
+        f'--hidden-import "uvicorn.protocols.http.auto" '
+        f'--hidden-import "uvicorn.protocols.websockets" '
+        f'--hidden-import "uvicorn.protocols.websockets.auto" '
+        f'--hidden-import "uvicorn.lifespan" '
+        f'--hidden-import "uvicorn.lifespan.on" '
+        f'app.py'
     )
     
     if not run_command(pyinstaller_cmd):
