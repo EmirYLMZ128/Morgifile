@@ -74,7 +74,15 @@ const isBroken = ref(false);
 const imgSrc = computed(() => {
   if (props.img.isDead) return `${BASE_URL}/thumbnail/${props.img.id}`;
   if (props.img.isSafe && props.img.SafePath) return `${BASE_URL}/safe-file?path=${encodeURIComponent(props.img.SafePath)}`;
-  if (props.img.isCORS || props.img.proxyTried) return `${BASE_URL}/proxy/image?url=${encodeURIComponent(props.img.originalUrl)}`;
+  
+  const isBehance = props.img.site === 'behance' || 
+                    (props.img.originalUrl && (
+                      props.img.originalUrl.includes('behance') || 
+                      props.img.originalUrl.includes('mir-s3') || 
+                      props.img.originalUrl.includes('mir-cdn')
+                    ));
+                    
+  if (props.img.isCORS || props.img.proxyTried || isBehance) return `${BASE_URL}/proxy/image?url=${encodeURIComponent(props.img.originalUrl)}`;
   return props.img.originalUrl;
 });
 

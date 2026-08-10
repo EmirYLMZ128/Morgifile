@@ -629,8 +629,26 @@ async def proxy_image(url: str):
             resp = await client.get(url, headers=headers)
         if resp.status_code != 200:
             raise HTTPException(status_code=resp.status_code, detail="Image fetch failed")
+            
+        # Detect Behance deleted/redirected placeholder image
+        if "behance" in url.lower() or "mir-s3" in url.lower() or "mir-cdn" in url.lower():
+            if resp.history:
+                final_url = str(resp.url).lower()
+                original_url = url.lower()
+                if final_url != original_url:
+                    placeholder_keywords = ["placeholder", "no-image", "default", "error", "assets", "removed", "404", "avatar", "deleted"]
+                    if any(kw in final_url for kw in placeholder_keywords):
+                        logger.warning(f"Behance image redirected to placeholder/error page: {resp.url}")
+                        raise HTTPException(status_code=404, detail="Image redirected to placeholder")
+                        
         content_type = resp.headers.get("content-type", "image/jpeg")
+        if "image" not in content_type.lower():
+            logger.warning(f"Proxied response is not an image (Content-Type: {content_type}) for URL: {url}")
+            raise HTTPException(status_code=404, detail="Response is not an image")
+            
         return Response(content=resp.content, media_type=content_type, headers={"Cache-Control": "public, max-age=86400"})
+    except HTTPException:
+        raise
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
 
@@ -689,6 +707,23 @@ async def create_thumbnail(url: str, img_id: str):
                 resp = await client.get(url, headers=headers)
             content = resp.content
             status_code = resp.status_code
+            
+            # Detect Behance deleted/redirected placeholder image
+            if status_code == 200 and ("behance" in url.lower() or "mir-s3" in url.lower() or "mir-cdn" in url.lower()):
+                final_url = str(resp.url).lower()
+                original_url = url.lower()
+                if final_url != original_url:
+                    placeholder_keywords = ["placeholder", "no-image", "default", "error", "assets", "removed", "404", "avatar", "deleted"]
+                    if any(kw in final_url for kw in placeholder_keywords):
+                        logger.warning(f"Behance image redirected to placeholder during thumbnail: {resp.url}")
+                        status_code = 404
+                        
+            # Detect if response is not an image
+            if status_code == 200:
+                content_type = resp.headers.get("content-type", "").lower()
+                if "image" not in content_type:
+                    logger.warning(f"Thumbnail source is not an image (Content-Type: {content_type}) for URL: {url}")
+                    status_code = 404
             
         logger.debug(f"📥 Thumbnail GET isteği sonucu: {status_code}")
         if status_code == 200:
@@ -810,6 +845,21 @@ async def extract_colors(img_id: str):
 # =====================
 # SYSTEM TRAY LOGIC
 # =====================
+def check_for_updates_sync():
+    import urllib.request
+    try:
+        req = urllib.request.Request(
+            "https://api.github.com/repos/EmirYLMZ128/Morgifile/releases/latest",
+            headers={"User-Agent": "MorgiFile-App"}
+        )
+        with urllib.request.urlopen(req, timeout=5) as response:
+            data = json.loads(response.read().decode())
+            latest_tag = data.get("tag_name", "")
+            return latest_tag
+    except Exception as e:
+        logger.error(f"Failed to check for updates: {e}")
+        return None
+
 def run_tray(port):
     icon_path = resource_path("icon.png")
     if not os.path.exists(icon_path):
@@ -825,8 +875,44 @@ def run_tray(port):
     def on_open_dashboard(icon, item):
         webbrowser.open(f"http://127.0.0.1:{port}")
 
+    def on_open_github(icon, item):
+        webbrowser.open("https://github.com/EmirYLMZ128/Morgifile")
+
+    def on_report_issue(icon, item):
+        webbrowser.open("https://github.com/EmirYLMZ128/Morgifile/issues/new")
+
+    def on_open_firefox_ext(icon, item):
+        webbrowser.open("https://addons.mozilla.org/en-US/firefox/addon/morgifile/")
+
+    def on_open_chrome_ext(icon, item):
+        webbrowser.open("https://chromewebstore.google.com/detail/morgifile/icgiihngfimipelnnmcelcidjjoifdbo")
+
+    def on_check_updates(icon, item):
+        def worker():
+            latest_tag = check_for_updates_sync()
+            current_tag = "Portablev2"
+            if latest_tag is None:
+                icon.notify("Could not check for updates. Please check your internet connection.", "MorgiFile Update")
+            elif latest_tag != current_tag:
+                icon.notify(f"New version ({latest_tag}) is available! Opening releases page...", "MorgiFile Update")
+                time.sleep(1)
+                webbrowser.open("https://github.com/EmirYLMZ128/Morgifile/releases")
+            else:
+                icon.notify("MorgiFile is up to date.", "MorgiFile Update")
+        
+        threading.Thread(target=worker, daemon=True).start()
+
     menu = pystray.Menu(
+        pystray.MenuItem("MorgiFile v2.0 (Portablev2)", None, enabled=False),
+        pystray.Menu.SEPARATOR,
         pystray.MenuItem("Open Dashboard", on_open_dashboard),
+        pystray.MenuItem("GitHub Repository", on_open_github),
+        pystray.MenuItem("Report an Issue", on_report_issue),
+        pystray.MenuItem("Check for Updates", on_check_updates),
+        pystray.Menu.SEPARATOR,
+        pystray.MenuItem("Firefox Extension", on_open_firefox_ext),
+        pystray.MenuItem("Chrome Extension", on_open_chrome_ext),
+        pystray.Menu.SEPARATOR,
         pystray.MenuItem("Quit", on_quit)
     )
     
@@ -972,11 +1058,12 @@ if __name__ == "__main__":
     # Wait slightly to ensure server thread starts before getting actual port if it was 0 (though uvicorn handles 0 internally, we won't know it easily. In our case it rarely reaches 0).
     time.sleep(0.5)
     
-    # Automatically open the dashboard in default browser on startup
-    try:
-        webbrowser.open(f"http://127.0.0.1:{actual_port}")
-    except Exception as e:
-        logger.error(f"Failed to open browser automatically: {e}")
+    # Automatically open the dashboard in default browser on startup only if running as a compiled executable
+    if getattr(sys, 'frozen', False):
+        try:
+            webbrowser.open(f"http://127.0.0.1:{actual_port}")
+        except Exception as e:
+            logger.error(f"Failed to open browser automatically: {e}")
         
     # Run tray in the main thread (required for Windows)
     run_tray(actual_port)
