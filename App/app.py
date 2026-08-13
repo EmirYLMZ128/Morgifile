@@ -1,6 +1,8 @@
 import os
 import sys
 
+VERSION = "3.0.6"
+
 # PyInstaller --noconsole fix for Uvicorn
 if sys.stdout is None:
     sys.stdout = open(os.devnull, "w")
@@ -890,7 +892,7 @@ def run_tray(port):
     def on_check_updates(icon, item):
         def worker():
             latest_tag = check_for_updates_sync()
-            current_tag = "Portablev2"
+            current_tag = f"v{VERSION}"
             if latest_tag is None:
                 icon.notify("Could not check for updates. Please check your internet connection.", "MorgiFile Update")
             elif latest_tag != current_tag:
@@ -903,7 +905,7 @@ def run_tray(port):
         threading.Thread(target=worker, daemon=True).start()
 
     menu = pystray.Menu(
-        pystray.MenuItem("MorgiFile v2.0 (Portablev2)", None, enabled=False),
+        pystray.MenuItem(f"MorgiFile v{VERSION}", None, enabled=False),
         pystray.Menu.SEPARATOR,
         pystray.MenuItem("Open Dashboard", on_open_dashboard),
         pystray.MenuItem("GitHub Repository", on_open_github),

@@ -4,6 +4,17 @@ import os
 
 block_cipher = None
 
+# Parse version from app.py to avoid hardcoding
+version = "3.0.5"
+try:
+    with open('app.py', 'r', encoding='utf-8') as f:
+        for line in f:
+            if line.startswith('VERSION ='):
+                version = line.split('=')[1].strip().strip("'\"")
+                break
+except Exception:
+    pass
+
 datas = [
     ('icon.png', '.'),
     ('dist', 'dist')
@@ -69,7 +80,7 @@ if sys.platform == 'darwin':
         bundle_identifier='com.morgifile.app',
         info_plist={
             'LSUIElement': True,
-            'CFBundleShortVersionString': '2.0.0',
-            'CFBundleVersion': '2.0.0',
+            'CFBundleShortVersionString': version,
+            'CFBundleVersion': version,
         }
     )
