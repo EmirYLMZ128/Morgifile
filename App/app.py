@@ -1,7 +1,7 @@
 import os
 import sys
 
-VERSION = "3.0.6"
+VERSION = "3.0.7"
 
 # PyInstaller --noconsole fix for Uvicorn
 if sys.stdout is None:
@@ -849,18 +849,32 @@ async def extract_colors(img_id: str):
 # =====================
 def check_for_updates_sync():
     import urllib.request
+    import ssl
+    req = urllib.request.Request(
+        "https://api.github.com/repos/EmirYLMZ128/Morgifile/releases/latest",
+        headers={"User-Agent": "MorgiFile-App"}
+    )
     try:
-        req = urllib.request.Request(
-            "https://api.github.com/repos/EmirYLMZ128/Morgifile/releases/latest",
-            headers={"User-Agent": "MorgiFile-App"}
-        )
-        with urllib.request.urlopen(req, timeout=5) as response:
+        context = ssl.create_default_context()
+        try:
+            import certifi
+            context.load_verify_locations(certifi.where())
+        except Exception:
+            pass
+        with urllib.request.urlopen(req, timeout=5, context=context) as response:
             data = json.loads(response.read().decode())
-            latest_tag = data.get("tag_name", "")
-            return latest_tag
-    except Exception as e:
-        logger.error(f"Failed to check for updates: {e}")
-        return None
+            return data.get("tag_name", "")
+    except Exception as default_err:
+        logger.warning(f"Default SSL verification failed, trying unverified context: {default_err}")
+        try:
+            unverified_context = ssl._create_unverified_context()
+            with urllib.request.urlopen(req, timeout=5, context=unverified_context) as response:
+                data = json.loads(response.read().decode())
+                return data.get("tag_name", "")
+        except Exception as e:
+            logger.error(f"Failed to check for updates with unverified context: {e}")
+            return None
+
 
 def run_tray(port):
     icon_path = resource_path("icon.png")
