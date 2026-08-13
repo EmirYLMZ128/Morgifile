@@ -46,6 +46,7 @@ optimization_report.md
 
 # PyInstaller
 *.spec
+!App/MorgiFile.spec
 *.exe
 build/
 dist/

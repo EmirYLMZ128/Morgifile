@@ -31,27 +31,9 @@ def build():
     # 3. Run PyInstaller
     print("--- Running PyInstaller ---")
     python_cmd = "python" if sys.platform == "win32" else "python3"
-    sep = ";" if sys.platform == "win32" else ":"
-    icon_flag = '--icon=icon.png' if sys.platform == 'win32' else ''
     
-    pyinstaller_cmd = (
-        f'{python_cmd} -m PyInstaller --noconsole --onefile '
-        f'{icon_flag} '
-        f'--add-data "icon.png{sep}." '
-        f'--add-data "dist{sep}dist" '
-        f'--name "MorgiFile" '
-        f'--hidden-import "uvicorn.logging" '
-        f'--hidden-import "uvicorn.loops" '
-        f'--hidden-import "uvicorn.loops.auto" '
-        f'--hidden-import "uvicorn.protocols" '
-        f'--hidden-import "uvicorn.protocols.http" '
-        f'--hidden-import "uvicorn.protocols.http.auto" '
-        f'--hidden-import "uvicorn.protocols.websockets" '
-        f'--hidden-import "uvicorn.protocols.websockets.auto" '
-        f'--hidden-import "uvicorn.lifespan" '
-        f'--hidden-import "uvicorn.lifespan.on" '
-        f'app.py'
-    )
+    # Use the spec file directly
+    pyinstaller_cmd = f'{python_cmd} -m PyInstaller --noconfirm MorgiFile.spec'
     
     if not run_command(pyinstaller_cmd):
         sys.exit(1)

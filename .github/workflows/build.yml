@@ -72,6 +72,21 @@ jobs:
         working-directory: App/Dashboard
         run: npm install
 
+      - name: Generate macOS .icns icon file
+        run: |
+          mkdir icon.iconset
+          sips -z 16 16     App/icon.png --out icon.iconset/icon_16x16.png
+          sips -z 32 32     App/icon.png --out icon.iconset/icon_16x16@2x.png
+          sips -z 32 32     App/icon.png --out icon.iconset/icon_32x32.png
+          sips -z 64 64     App/icon.png --out icon.iconset/icon_32x32@2x.png
+          sips -z 128 128   App/icon.png --out icon.iconset/icon_128x128.png
+          sips -z 256 256   App/icon.png --out icon.iconset/icon_128x128@2x.png
+          sips -z 256 256   App/icon.png --out icon.iconset/icon_256x256.png
+          sips -z 512 512   App/icon.png --out icon.iconset/icon_256x256@2x.png
+          sips -z 512 512   App/icon.png --out icon.iconset/icon_512x512.png
+          sips -z 1024 1024 App/icon.png --out icon.iconset/icon_512x512@2x.png
+          iconutil -c icns icon.iconset -o App/icon.icns
+
       - name: Build Application
         working-directory: App
         run: python3 build_all.py
@@ -79,7 +94,10 @@ jobs:
       - name: Package macOS DMG
         working-directory: App/dist
         run: |
-          hdiutil create -volname "MorgiFile" -srcfolder MorgiFile.app -ov -format UDZO MorgiFile.dmg
+          mkdir dmg_root
+          cp -R MorgiFile.app dmg_root/
+          ln -s /Applications dmg_root/Applications
+          hdiutil create -volname "MorgiFile" -srcfolder dmg_root -ov -format UDZO MorgiFile.dmg
 
       - name: Upload macOS Artifact
         uses: actions/upload-artifact@v4
