@@ -69,6 +69,29 @@ try {
       }
     }
 
+    // Overriding HTMLElement.prototype.focus to prevent focus stealing when Morgifile input is active
+    const unwrappedHTMLElement = window.wrappedJSObject.HTMLElement;
+    if (unwrappedHTMLElement && unwrappedHTMLElement.prototype) {
+      const originalFocus = unwrappedHTMLElement.prototype.focus;
+      const safeFocus = exportFunction(function (options) {
+        const mainHost = window.wrappedJSObject.document.getElementById('morgi-main-host');
+        if (mainHost && mainHost.hasAttribute('data-active-input')) {
+          if (this.id === 'morgi-main-host' || this.id === 'morgi-picker-host' || (this.getRootNode && this.getRootNode().host && (this.getRootNode().host.id === 'morgi-main-host' || this.getRootNode().host.id === 'morgi-picker-host'))) {
+            return originalFocus.call(this, options);
+          }
+          console.log("MorgiFile: Blocked page context from stealing focus.");
+          return;
+        }
+        return originalFocus.call(this, options);
+      }, window.wrappedJSObject);
+
+      Object.defineProperty(unwrappedHTMLElement.prototype, 'focus', {
+        value: safeFocus,
+        writable: true,
+        configurable: true
+      });
+    }
+
     // Global Keyboard Event Interceptor using page context event listeners
     const isMorgiInputFocused = function () {
       const mainHost = document.getElementById('morgi-main-host');
@@ -232,26 +255,21 @@ function createShadowHost(id) {
   shadow.append(link, overlay);
 
   const handleActiveInputCheck = (e) => {
-    const active = e.target || shadow.activeElement;
+    const active = e.target;
     if (active && (active.tagName === 'INPUT' || active.tagName === 'TEXTAREA')) {
       host.setAttribute("data-active-input", "true");
-    } else {
-      host.removeAttribute("data-active-input");
     }
   };
 
-  ['pointerdown', 'mousedown', 'focusin'].forEach(evt => {
-    shadow.addEventListener(evt, handleActiveInputCheck, true);
-  });
-
-  shadow.addEventListener("focusout", () => {
+  shadow.addEventListener("focus", handleActiveInputCheck, true);
+  shadow.addEventListener("blur", () => {
     setTimeout(() => {
       const active = shadow.activeElement;
       if (!active || (active.tagName !== 'INPUT' && active.tagName !== 'TEXTAREA')) {
         host.removeAttribute("data-active-input");
       }
     }, 10);
-  });
+  }, true);
 
   // Apply theme to host
   chrome.storage.local.get(['theme'], (res) => {
@@ -470,6 +488,13 @@ async function setupModalLogic(shadow, host, imgUrl, imgElement) {
   createCatWrapper.appendChild(submitBtn);
 
   createCatWrapper.onclick = (e) => e.stopPropagation();
+
+  inputEl.addEventListener('focus', () => {
+    host.setAttribute("data-active-input", "true");
+  });
+  inputEl.addEventListener('blur', () => {
+    host.removeAttribute("data-active-input");
+  });
 
   ['keydown', 'keyup', 'keypress'].forEach(evt => {
     inputEl.addEventListener(evt, (e) => e.stopPropagation());
